@@ -57,7 +57,7 @@ export default function Dashboard({ user }) {
   const [meals, setMeals]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [craving, setCraving]       = useState('');
-  const [alternative, setAlternative] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching]   = useState(false);
   const [visibleMeals, setVisibleMeals] = useState([]);
   const inputRef = useRef(null);
@@ -85,17 +85,19 @@ export default function Dashboard({ user }) {
 
   useEffect(() => { fetchMeals(); }, [fetchMeals]);
 
-  /* ── Craving engine ─────────────────────── */
-  const findAlternative = async () => {
+  /* ── Suggest engine ─────────────────────── */
+  const findSuggestions = async () => {
     if (!craving.trim()) { inputRef.current?.focus(); return; }
     setSearching(true);
-    setAlternative(null);
+    setSuggestions([]);
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/alternatives/', { craving });
-      setAlternative(res.data);
-      speakText(`Instead of ${craving}, try ${res.data.name}. ${res.data.reasoning}`, lang);
+      const res = await axios.post('http://127.0.0.1:8000/api/suggest/', {
+        prompt: craving,
+        allergies: user.allergies || [],
+      });
+      setSuggestions(res.data.suggestions || []);
     } catch {
-      toast.error("Couldn't find an alternative right now. Try again.");
+      toast.error("Couldn't get suggestions right now. Try again.");
     } finally {
       setSearching(false);
     }
@@ -176,59 +178,85 @@ export default function Dashboard({ user }) {
       {/* ── Content ────────────────────────── */}
       <div className="max-w-md mx-auto px-4 -mt-10 space-y-5">
 
-        {/* ── Craving engine ─────────────── */}
+        {/* ── Prompt / Suggest engine ────── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
           className="bg-white rounded-3xl shadow-card overflow-hidden border border-orange-100"
         >
           <div className="bg-gradient-to-r from-saffron-500/10 to-orange-50 px-5 py-4 border-b border-orange-100">
             <h3 className="font-black text-slate-800 flex items-center gap-2">
-              <span className="text-xl">🤔</span> Craving something unhealthy?
+              <span className="text-xl">💬</span> What are you in the mood for?
             </h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Get a personalised healthy Indian alternative</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
+              Describe any craving — we'll suggest 3 healthy options just for you
+              {user.allergies?.length > 0 && (
+                <span className="ml-1 text-red-400 font-semibold">
+                  (avoiding {user.allergies.join(', ')})
+                </span>
+              )}
+            </p>
           </div>
 
           <div className="p-5">
-            <div className="flex gap-2">
-              <input
-                ref={inputRef}
-                className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-saffron-400 focus:bg-white transition-all text-slate-700 font-medium placeholder:font-normal placeholder:text-slate-300"
-                value={craving}
-                onChange={e => setCraving(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && findAlternative()}
-                placeholder="e.g. Pizza, Samosa, Ice cream…"
-              />
-              <button
-                onClick={findAlternative}
-                disabled={searching}
-                className="bg-saffron-500 hover:bg-saffron-600 text-white px-4 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center shadow-sm active:scale-95"
-              >
-                {searching ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-              </button>
-            </div>
+            <textarea
+              ref={inputRef}
+              rows={3}
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-saffron-400 focus:bg-white transition-all text-slate-700 font-medium placeholder:font-normal placeholder:text-slate-300 resize-none text-sm leading-relaxed"
+              value={craving}
+              onChange={e => setCraving(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && e.ctrlKey && findSuggestions()}
+              placeholder="e.g. I feel like something cheesy and crispy tonight… or maybe something Italian like pasta?"
+            />
+            <button
+              onClick={findSuggestions}
+              disabled={searching}
+              className="mt-3 w-full bg-gradient-to-r from-saffron-500 to-orange-500 hover:from-saffron-600 hover:to-orange-600 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]"
+            >
+              {searching
+                ? <><Loader2 size={18} className="animate-spin" /> Finding options…</>
+                : <><Search size={16} /> Get Suggestions</>
+              }
+            </button>
 
-            {alternative && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="mt-4 bg-gradient-to-br from-saffron-50 to-orange-50 p-4 rounded-2xl border border-orange-100"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-4xl leading-none mt-1">{alternative.emoji}</span>
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-saffron-600 uppercase tracking-wider mb-0.5">Try instead</p>
-                    <h4 className="font-black text-slate-800 text-lg leading-tight">{alternative.name}</h4>
-                    <p className="text-slate-500 text-sm mt-1 leading-relaxed">{alternative.reasoning}</p>
-                    <div className="flex gap-2 mt-3">
-                      <span className="bg-white text-orange-600 font-bold px-2.5 py-1 rounded-lg text-xs shadow-sm border border-orange-100 flex items-center gap-1">
-                        <Flame size={11}/> {alternative.calories} kcal
-                      </span>
-                      <span className="bg-white text-blue-600 font-bold px-2.5 py-1 rounded-lg text-xs shadow-sm border border-blue-100 flex items-center gap-1">
-                        <Beef size={11}/> {alternative.protein}g protein
-                      </span>
+            {suggestions.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Here's what we suggest
+                </p>
+                {suggestions.map((s, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-gradient-to-br from-saffron-50 to-orange-50 p-4 rounded-2xl border border-orange-100"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-3xl leading-none mt-0.5 flex-shrink-0">{s.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-black text-slate-800 text-base leading-tight">{s.name}</h4>
+                        <p className="text-slate-500 text-xs mt-1 leading-relaxed">{s.reasoning}</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className="bg-white text-orange-600 font-bold px-2 py-0.5 rounded-lg text-xs shadow-sm border border-orange-100 flex items-center gap-1">
+                            <Flame size={10}/> {s.calories} kcal
+                          </span>
+                          <span className="bg-white text-blue-600 font-bold px-2 py-0.5 rounded-lg text-xs shadow-sm border border-blue-100 flex items-center gap-1">
+                            <Beef size={10}/> {s.protein}g protein
+                          </span>
+                          <a
+                            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(s.youtube_query || s.name + ' recipe')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-white text-red-500 font-bold px-2 py-0.5 rounded-lg text-xs shadow-sm border border-red-100 flex items-center gap-1 hover:bg-red-50 transition-colors"
+                          >
+                            <PlayCircle size={10}/> Watch
+                          </a>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </motion.div>
+                  </motion.div>
+                ))}
+              </div>
             )}
           </div>
         </motion.div>

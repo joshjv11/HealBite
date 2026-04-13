@@ -4,7 +4,7 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from database import user_collection
-from models import UserCreate, AlternativeRequest
+from models import UserCreate, AlternativeRequest, PromptRequest
 from bson import ObjectId
 from bson.errors import InvalidId
 from dotenv import load_dotenv
@@ -181,3 +181,44 @@ async def get_alternative(req: AlternativeRequest):
             "emoji": "🟤",
             "reasoning": "Roasted makhana is a great low-calorie Indian snack that satisfies cravings without guilt!"
         }
+
+
+FALLBACK_SUGGESTIONS = [
+    {"name": "Vegetable Oats Upma",  "emoji": "🥣", "calories": 220, "protein": 7,  "reasoning": "Light, filling, and packed with fibre to keep you energised.", "youtube_query": "Vegetable Oats Upma recipe"},
+    {"name": "Moong Dal Chilla",     "emoji": "🥞", "calories": 190, "protein": 11, "reasoning": "High-protein, quick to make, and naturally satisfying.", "youtube_query": "Moong Dal Chilla healthy recipe"},
+    {"name": "Roasted Makhana Bowl", "emoji": "🟤", "calories": 110, "protein": 4,  "reasoning": "Crunchy, guilt-free, and perfect as a light snack anytime.", "youtube_query": "Roasted Makhana snack recipe"},
+]
+
+
+@app.post("/api/suggest/")
+async def get_suggestions(req: PromptRequest):
+    user_prompt = req.prompt.strip()
+    if not user_prompt:
+        raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
+
+    allergies_str = ", ".join(req.allergies) if req.allergies else "none"
+
+    gemini_prompt = (
+        f'The user said: "{user_prompt}"\n'
+        f"Their food allergies: {allergies_str}.\n"
+        "You are a smart, friendly Indian nutritionist. Understand the mood and craving from the user's message "
+        "and suggest exactly 3 healthy, satisfying meal ideas. "
+        "Prefer Indian dishes but allow global cuisine if the user asks for it (e.g. Italian, Chinese). "
+        "Strictly avoid any allergens listed. Make suggestions feel exciting and achievable.\n"
+        "Return ONLY a JSON array of 3 objects, each with these keys:\n"
+        "name(string), emoji(string), calories(int), protein(int), "
+        "reasoning(string — one warm, encouraging sentence), youtube_query(string)"
+    )
+
+    try:
+        raw = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(None, _call_gemini, gemini_prompt),
+            timeout=20.0,
+        )
+        suggestions = json.loads(raw)
+        if not isinstance(suggestions, list):
+            suggestions = [suggestions]
+        return {"suggestions": suggestions[:3]}
+    except Exception as e:
+        print(f"Suggest Error: {e}")
+        return {"suggestions": FALLBACK_SUGGESTIONS}

@@ -28,3 +28,8 @@ class FoodItem(BaseModel):
 
 class AlternativeRequest(BaseModel):
     craving: str
+
+
+class PromptRequest(BaseModel):
+    prompt: str
+    allergies: List[str] = []

@@ -66,7 +66,7 @@ export default function App() {
       setForm(prev => ({ ...prev, [field]: clean }));
     };
 
-    recognition.onerror = (e) => {
+    recognition.onerror = async (e) => {
       setIsListening(false);
       recognitionRef.current = null;
       if (e.error === 'not-allowed' || e.error === 'permission-denied') {
@@ -75,6 +75,17 @@ export default function App() {
         toast("No speech detected. Tap mic and try again.", { icon: '🎙️' });
       } else if (e.error === 'audio-capture') {
         toast.error("No microphone found. Please connect one and try again.");
+      } else if (e.error === 'network') {
+        // Brave browser blocks the Web Speech API network call to Google's servers
+        const isBrave = navigator.brave && (await navigator.brave.isBrave().catch(() => false));
+        if (isBrave) {
+          toast.error(
+            "Brave blocks voice input. Open brave://settings/privacy and disable 'Block fingerprinting', or switch to Chrome.",
+            { duration: 6000 }
+          );
+        } else {
+          toast.error("Voice needs an internet connection. Check your network and try again.");
+        }
       } else {
         toast.error(`Voice error: ${e.error}. Please type instead.`);
       }
