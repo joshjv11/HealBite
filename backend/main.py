@@ -19,6 +19,25 @@ if not api_key or api_key == "your_actual_api_key_goes_here":
 client = genai.Client(api_key=api_key)
 JSON_CONFIG = types.GenerateContentConfig(response_mime_type="application/json")
 
+# Static fallback meals shown when Gemini is unavailable
+FALLBACK_MEALS = {
+    "North": [
+        {"id": "f0", "name": "Poha with Peanuts", "category": "Small Meal", "calories": 250, "protein": 6, "carbs": 45, "fats": 7, "emoji": "🍚", "youtube_query": "Poha recipe healthy breakfast"},
+        {"id": "f1", "name": "Dal Tadka with Roti", "category": "Avg Meal", "calories": 420, "protein": 16, "carbs": 58, "fats": 10, "emoji": "🫓", "youtube_query": "Dal Tadka recipe"},
+        {"id": "f2", "name": "Roasted Makhana", "category": "Tiny/Craving", "calories": 100, "protein": 3, "carbs": 20, "fats": 2, "emoji": "🟤", "youtube_query": "Roasted Makhana recipe"},
+    ],
+    "South": [
+        {"id": "f0", "name": "Idli Sambar", "category": "Small Meal", "calories": 200, "protein": 8, "carbs": 38, "fats": 3, "emoji": "🤍", "youtube_query": "Idli Sambar recipe"},
+        {"id": "f1", "name": "Vegetable Upma", "category": "Avg Meal", "calories": 300, "protein": 9, "carbs": 50, "fats": 7, "emoji": "🍲", "youtube_query": "Vegetable Upma recipe"},
+        {"id": "f2", "name": "Banana", "category": "Tiny/Craving", "calories": 90, "protein": 1, "carbs": 23, "fats": 0, "emoji": "🍌", "youtube_query": "healthy snack banana"},
+    ],
+    "All": [
+        {"id": "f0", "name": "Vegetable Oats", "category": "Small Meal", "calories": 220, "protein": 7, "carbs": 40, "fats": 5, "emoji": "🥣", "youtube_query": "Vegetable Oats recipe healthy"},
+        {"id": "f1", "name": "Rajma Chawal", "category": "Avg Meal", "calories": 450, "protein": 18, "carbs": 68, "fats": 8, "emoji": "🍛", "youtube_query": "Rajma Chawal recipe"},
+        {"id": "f2", "name": "Roasted Chana", "category": "Tiny/Craving", "calories": 120, "protein": 7, "carbs": 18, "fats": 3, "emoji": "🫘", "youtube_query": "Roasted Chana healthy snack"},
+    ],
+}
+
 app = FastAPI()
 
 app.add_middleware(
@@ -114,7 +133,10 @@ async def get_personalized_meals(user_id: str):
         return {"meals": meals, "user": format_doc(user)}
     except Exception as e:
         print(f"Gemini Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate AI meal plan.")
+        # Return static fallback meals so the app stays usable
+        region = user.get("region", "All")
+        fallback = FALLBACK_MEALS.get(region, FALLBACK_MEALS["All"])
+        return {"meals": fallback, "user": format_doc(user), "fallback": True}
 
 
 @app.post("/api/alternatives/")
@@ -146,4 +168,11 @@ async def get_alternative(req: AlternativeRequest):
         return alternative
     except Exception as e:
         print(f"Gemini Error: {e}")
-        raise HTTPException(status_code=500, detail="AI could not process this craving right now.")
+        # Generic healthy fallback so the UI still responds
+        return {
+            "name": "Roasted Makhana",
+            "calories": 100,
+            "protein": 3,
+            "emoji": "🟤",
+            "reasoning": f"Roasted makhana is a great low-calorie Indian snack that satisfies cravings without guilt!"
+        }

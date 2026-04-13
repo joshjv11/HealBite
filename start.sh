@@ -43,12 +43,6 @@ for i in {1..30}; do
   sleep 0.5
 done
 
-# ── 4. Seed the database ─────────────────────
-echo ""
-echo "▶ Seeding the database..."
-SEED_RESPONSE=$(curl -s -X POST http://127.0.0.1:8000/api/seed/)
-echo "  $SEED_RESPONSE"
-
 # ── 5. Frontend ──────────────────────────────
 echo ""
 echo "▶ Starting React frontend..."
