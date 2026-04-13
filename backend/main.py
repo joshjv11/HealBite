@@ -304,28 +304,42 @@ async def scan_medical_report(
 
     prompt = """
 You are a world-class Clinical Pathologist and Indian Dietitian AI.
-Analyze this medical lab report image. Look specifically for Lipid Profiles, Blood Sugar (HbA1c / Fasting Glucose), Thyroid (TSH/T3/T4), Liver, or CBC profiles.
+Analyze this medical document image. It may be a lab report, blood test, prescription, doctor's case note,
+clinical summary, or any document containing patient health information.
+
+Accept ANY of the following as a valid medical document:
+- Blood / lab reports (CBC, lipid profile, HbA1c, thyroid, liver function)
+- Doctor's prescription or case notes mentioning diagnoses or conditions
+- Clinical summaries mentioning diseases like diabetes, hypertension, high cholesterol, thyroid disorders, anaemia
+
+Extract whatever health markers or conditions you can find. If numeric values are present, use them.
+If only a diagnosis is mentioned (e.g. "diabetes mellitus"), infer a reasonable marker entry for it.
 
 Return STRICT JSON (no markdown) with this exact structure:
 {
   "is_medical_report": true,
   "markers": {
-    "Total_Cholesterol": {"value": 210, "unit": "mg/dL", "status": "High"},
-    "LDL": {"value": 140, "unit": "mg/dL", "status": "High"},
-    "HDL": {"value": 38, "unit": "mg/dL", "status": "Low"},
-    "Triglycerides": {"value": 180, "unit": "mg/dL", "status": "Borderline"}
+    "Marker_Name": {"value": 150, "unit": "mg/dL", "status": "High"}
   },
-  "clinical_directive": "Patient has high LDL and low HDL. STRICTLY AVOID saturated fats, butter, ghee, red meat. PRIORITIZE soluble fibre, oats, flaxseed, and omega-3 rich foods."
+  "clinical_directive": "One strict sentence for an AI chef. E.g.: Patient has Type 2 Diabetes — STRICTLY AVOID refined sugar, white rice, maida. PRIORITIZE low-GI foods, oats, millets, leafy greens."
 }
 
-If the image is NOT a medical lab report, return: {"is_medical_report": false, "markers": {}, "clinical_directive": ""}
+Set "is_medical_report": false ONLY if the image is completely unrelated to health or medicine
+(e.g. a food photo, receipt, ID card, or blank page).
 """
     try:
         raw = _call_gemini(prompt=prompt, contents=[prompt, image_part])
         clinical_data = json.loads(raw)
 
         if not clinical_data.get("is_medical_report"):
-            raise HTTPException(status_code=400, detail="This image does not appear to be a medical lab report. Please upload a clear photo of a blood test or lipid profile.")
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "This image doesn't appear to contain medical information. "
+                    "Please upload a blood test report, prescription, or doctor's case note "
+                    "that mentions diagnoses or health markers."
+                ),
+            )
 
         await user_collection.update_one(
             {"_id": oid},
@@ -392,7 +406,7 @@ async def get_personalized_meals(user_id: str):
     try:
         raw = await asyncio.wait_for(
             asyncio.get_event_loop().run_in_executor(None, _call_gemini, prompt),
-            timeout=20.0,
+            timeout=40.0,
         )
         meals = json.loads(raw)
         if not isinstance(meals, list):
@@ -401,6 +415,10 @@ async def get_personalized_meals(user_id: str):
             meal["id"] = f"meal_{i}"
         log.info("Meals: returning %d AI-generated meals.", len(meals))
         return {"meals": meals, "user": format_doc(user)}
+    except asyncio.TimeoutError:
+        log.error("Meals: Gemini timed out after 40s → static fallback.")
+        fallback = FALLBACK_MEALS.get(region, FALLBACK_MEALS["All"])
+        return {"meals": fallback, "user": format_doc(user), "fallback": True}
     except Exception as e:
         log.error("Meals: Gemini failed → static fallback. Error: %s", e)
         fallback = FALLBACK_MEALS.get(region, FALLBACK_MEALS["All"])
@@ -428,12 +446,11 @@ async def pantry_chef(req: PantryRequest):
     try:
         raw = await asyncio.wait_for(
             asyncio.get_event_loop().run_in_executor(None, _call_gemini, prompt),
-            timeout=20.0,
+            timeout=40.0,
         )
         return json.loads(raw)
     except Exception as e:
         log.error("Pantry chef error: %s", e)
-        # Graceful offline fallback — never show a 500 for this feature
         fallback = _pantry_fallback(req.ingredients)
         log.info("Pantry: returning offline fallback recipe '%s'", fallback["name"])
         return {**fallback, "source": "fallback"}
@@ -508,7 +525,7 @@ async def get_suggestions(req: PromptRequest):
     try:
         raw = await asyncio.wait_for(
             asyncio.get_event_loop().run_in_executor(None, _call_gemini, gemini_prompt),
-            timeout=20.0,
+            timeout=40.0,
         )
         suggestions = json.loads(raw)
         if not isinstance(suggestions, list):
