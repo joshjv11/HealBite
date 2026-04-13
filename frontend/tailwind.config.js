@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,45 +8,70 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        headline: ['Newsreader', 'serif'],
+        body:     ['Lexend', 'sans-serif'],
+        label:    ['Lexend', 'sans-serif'],
+        sans:     ['Lexend', 'system-ui', 'sans-serif'],
       },
       colors: {
-        brand: {
-          50:  '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-        },
-        saffron: {
-          50:  '#fffbeb',
-          100: '#fef3c7',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-        },
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'hero-pattern': "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2322c55e' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
-      },
-      boxShadow: {
-        'card': '0 1px 3px 0 rgba(0,0,0,0.04), 0 4px 16px 0 rgba(0,0,0,0.06)',
-        'card-hover': '0 4px 6px -1px rgba(0,0,0,0.06), 0 10px 30px -3px rgba(0,0,0,0.1)',
-        'green-glow': '0 0 20px rgba(34,197,94,0.25)',
-        'brand-lg': '0 10px 25px -3px rgba(34,197,94,0.3)',
+        /* ── Noir surface scale ── */
+        'surface':                   '#121412',
+        'surface-dim':               '#121412',
+        'surface-bright':            '#383a37',
+        'surface-container-lowest':  '#0d0f0d',
+        'surface-container-low':     '#1a1c1a',
+        'surface-container':         '#1e201e',
+        'surface-container-high':    '#282a28',
+        'surface-container-highest': '#333533',
+        'on-surface':                '#e2e3df',
+        'on-surface-variant':        '#bfc9c3',
+        'surface-variant':           '#333533',
+        'surface-tint':              '#95d3ba',
+        'background':                '#121412',
+        'on-background':             '#e2e3df',
+        /* ── Primary (mint green) ── */
+        'primary':              '#95d3ba',
+        'primary-fixed':        '#b0f0d6',
+        'primary-fixed-dim':    '#95d3ba',
+        'primary-container':    '#064e3b',
+        'on-primary':           '#003829',
+        'on-primary-container': '#80bea6',
+        'on-primary-fixed':     '#002117',
+        'inverse-primary':      '#2b6954',
+        /* ── Secondary (neutral) ── */
+        'secondary':                  '#c8c6c5',
+        'secondary-container':        '#4a4949',
+        'secondary-fixed':            '#e5e2e1',
+        'secondary-fixed-dim':        '#c8c6c5',
+        'on-secondary':               '#313030',
+        'on-secondary-container':     '#bab8b7',
+        'on-secondary-fixed':         '#1c1b1b',
+        'on-secondary-fixed-variant': '#474646',
+        /* ── Tertiary (gold) ── */
+        'tertiary':              '#e9c176',
+        'tertiary-fixed':        '#ffdea5',
+        'tertiary-fixed-dim':    '#e9c176',
+        'tertiary-container':    '#5a4000',
+        'on-tertiary':           '#412d00',
+        'on-tertiary-container': '#d3ac64',
+        'on-tertiary-fixed':     '#261900',
+        /* ── Outlines & surface inverse ── */
+        'outline':          '#89938d',
+        'outline-variant':  '#404944',
+        'inverse-surface':  '#e2e3df',
+        'inverse-on-surface': '#2f312f',
+        /* ── Error ── */
+        'error':             '#ffb4ab',
+        'error-container':   '#93000a',
+        'on-error':          '#690005',
+        'on-error-container':'#ffdad6',
       },
       animation: {
-        'shimmer': 'shimmer 1.8s infinite',
-        'fade-up': 'fadeUp 0.4s ease-out forwards',
-        'scale-in': 'scaleIn 0.2s ease-out forwards',
-        'slide-up': 'slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards',
-        'pulse-ring': 'pulseRing 1.5s cubic-bezier(0.4,0,0.6,1) infinite',
+        'shimmer':       'shimmer 1.8s infinite',
+        'fade-up':       'fadeUp 0.4s ease-out forwards',
         'bounce-gentle': 'bounceGentle 2s ease-in-out infinite',
-        'spin-slow': 'spin 3s linear infinite',
+        'pulse-ring':    'pulseRing 1.5s cubic-bezier(0.4,0,0.6,1) infinite',
+        'spin-slow':     'spin 3s linear infinite',
       },
       keyframes: {
         shimmer: {
@@ -53,25 +79,17 @@ export default {
           '100%': { backgroundPosition: '400px 0' },
         },
         fadeUp: {
-          '0%':   { opacity: '0', transform: 'translateY(12px)' },
+          '0%':   { opacity: '0', transform: 'translateY(14px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        scaleIn: {
-          '0%':   { opacity: '0', transform: 'scale(0.92)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-        slideUp: {
-          '0%':   { opacity: '0', transform: 'translateY(24px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        pulseRing: {
-          '0%':   { transform: 'scale(0.85)', boxShadow: '0 0 0 0 rgba(239,68,68,0.6)' },
-          '70%':  { transform: 'scale(1)',    boxShadow: '0 0 0 18px rgba(239,68,68,0)' },
-          '100%': { transform: 'scale(0.85)', boxShadow: '0 0 0 0 rgba(239,68,68,0)' },
         },
         bounceGentle: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%':      { transform: 'translateY(-6px)' },
+        },
+        pulseRing: {
+          '0%':   { transform: 'scale(0.85)', boxShadow: '0 0 0 0 rgba(233,193,118,0.6)' },
+          '70%':  { transform: 'scale(1)',    boxShadow: '0 0 0 18px rgba(233,193,118,0)' },
+          '100%': { transform: 'scale(0.85)', boxShadow: '0 0 0 0 rgba(233,193,118,0)' },
         },
       },
     },
