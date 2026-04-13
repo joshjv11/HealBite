@@ -56,9 +56,10 @@ function MacroChip({ icon: Icon, value, label, className }) {
 export default function Dashboard({ user }) {
   const [meals, setMeals]           = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [craving, setCraving]       = useState('');
+  const [craving, setCraving]         = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [searching, setSearching]   = useState(false);
+  const [suggestSource, setSuggestSource] = useState('');
+  const [searching, setSearching]     = useState(false);
   const [visibleMeals, setVisibleMeals] = useState([]);
   const inputRef = useRef(null);
 
@@ -90,12 +91,14 @@ export default function Dashboard({ user }) {
     if (!craving.trim()) { inputRef.current?.focus(); return; }
     setSearching(true);
     setSuggestions([]);
+    setSuggestSource('');
     try {
       const res = await axios.post('http://127.0.0.1:8000/api/suggest/', {
         prompt: craving,
         allergies: user.allergies || [],
       });
       setSuggestions(res.data.suggestions || []);
+      setSuggestSource(res.data.source || '');
     } catch {
       toast.error("Couldn't get suggestions right now. Try again.");
     } finally {
@@ -220,9 +223,16 @@ export default function Dashboard({ user }) {
 
             {suggestions.length > 0 && (
               <div className="mt-4 space-y-3">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Here's what we suggest
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Here's what we suggest
+                  </p>
+                  {suggestSource === 'fallback' && (
+                    <span className="text-xs text-amber-500 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      offline picks
+                    </span>
+                  )}
+                </div>
                 {suggestions.map((s, idx) => (
                   <motion.div
                     key={idx}

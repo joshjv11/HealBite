@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from database import user_collection
@@ -12,6 +13,14 @@ from google import genai
 from google.genai import types
 
 load_dotenv()
+
+# ── Logging setup ─────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("aaharvoice")
 
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key or api_key == "your_actual_api_key_goes_here":
@@ -95,19 +104,26 @@ async def create_user(user_data: UserCreate):
 
 
 def _call_gemini(prompt: str) -> str:
-    """Try each model in cascade order; return raw text or raise."""
+    """Try each model in cascade order; log every attempt. Return raw text or raise."""
+    log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    log.info("PROMPT SENT TO GEMINI:\n%s", prompt)
+    log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     last_err = None
     for model in GEMINI_MODELS:
         try:
+            log.info("Trying model: %s", model)
             response = client.models.generate_content(
                 model=model,
                 contents=prompt,
                 config=JSON_CONFIG,
             )
+            log.info("SUCCESS with model: %s", model)
+            log.info("RAW RESPONSE:\n%s", response.text)
             return response.text
         except Exception as e:
-            print(f"  [{model}] failed: {str(e)[:80]}")
+            log.warning("  [%s] FAILED: %s", model, str(e)[:120])
             last_err = e
+    log.error("ALL MODELS FAILED — raising last error")
     raise last_err
 
 
@@ -129,6 +145,8 @@ async def get_personalized_meals(user_id: str):
         "Return ONLY the JSON array, no extra text."
     )
 
+    log.info("Meals request — user: %s | region: %s | allergies: %s | cal: %s",
+             user.get("name"), region, allergies_str, user["target_cal"])
     try:
         raw = await asyncio.wait_for(
             asyncio.get_event_loop().run_in_executor(None, _call_gemini, prompt),
@@ -139,9 +157,10 @@ async def get_personalized_meals(user_id: str):
             meals = [meals]
         for i, meal in enumerate(meals):
             meal["id"] = f"meal_{i}"
+        log.info("Meals: returning %d AI-generated meals for user '%s'", len(meals), user.get("name"))
         return {"meals": meals, "user": format_doc(user)}
     except Exception as e:
-        print(f"Gemini cascade failed: {e}")
+        log.error("Meals: Gemini cascade failed → using static fallback. Error: %s", e)
         fallback = FALLBACK_MEALS.get(region, FALLBACK_MEALS["All"])
         return {"meals": fallback, "user": format_doc(user), "fallback": True}
 
@@ -183,11 +202,52 @@ async def get_alternative(req: AlternativeRequest):
         }
 
 
-FALLBACK_SUGGESTIONS = [
+# Keyword-aware fallback pools for the suggest endpoint
+_SUGGEST_FALLBACKS = {
+    "italian|pizza|pasta|lasagna|risotto|carbonara": [
+        {"name": "Whole Wheat Pasta Primavera", "emoji": "🍝", "calories": 340, "protein": 12, "reasoning": "Packed with veggies and whole-grain pasta — Italian comfort without the guilt.", "youtube_query": "healthy whole wheat pasta primavera recipe"},
+        {"name": "Paneer Tikka Pizza (Whole Wheat)", "emoji": "🍕", "calories": 310, "protein": 16, "reasoning": "A desi-Italian fusion that satisfies your pizza craving with a protein boost.", "youtube_query": "healthy paneer tikka pizza recipe"},
+        {"name": "Minestrone Soup with Multigrain Bread", "emoji": "🥣", "calories": 280, "protein": 10, "reasoning": "Warm, hearty, and rich in fibre — an Italian classic made light.", "youtube_query": "minestrone soup healthy recipe"},
+    ],
+    "chinese|noodles|fried rice|dim sum|manchurian": [
+        {"name": "Vegetable Hakka Noodles (Less Oil)", "emoji": "🍜", "calories": 290, "protein": 9, "reasoning": "Stir-fried with minimal oil and loads of veggies to keep it light.", "youtube_query": "healthy vegetable hakka noodles recipe"},
+        {"name": "Steamed Momos with Chilli Sauce", "emoji": "🥟", "calories": 220, "protein": 11, "reasoning": "Steamed momos are low-calorie and protein-rich — a much healthier alternative to fried.", "youtube_query": "healthy steamed momos recipe"},
+        {"name": "Tofu & Broccoli Stir Fry", "emoji": "🥦", "calories": 250, "protein": 18, "reasoning": "High protein, low carb, and packed with nutrients — your body will thank you.", "youtube_query": "tofu broccoli stir fry healthy recipe"},
+    ],
+    "sweet|chocolate|dessert|ice cream|cake|cookie|mithai|gulab|halwa": [
+        {"name": "Dark Chocolate Banana Nice Cream", "emoji": "🍫", "calories": 160, "protein": 3, "reasoning": "Frozen banana blended with dark cocoa — creamy, chocolatey, and totally guilt-free.", "youtube_query": "banana nice cream chocolate healthy recipe"},
+        {"name": "Kheer with Jaggery & Almonds", "emoji": "🍮", "calories": 200, "protein": 6, "reasoning": "A lighter kheer sweetened with jaggery — satisfies your sweet tooth the Indian way.", "youtube_query": "healthy kheer jaggery recipe"},
+        {"name": "Mango Lassi (Low Fat)", "emoji": "🥭", "calories": 150, "protein": 5, "reasoning": "Cool, naturally sweet, and refreshing — a perfect Indian dessert drink.", "youtube_query": "low fat mango lassi recipe"},
+    ],
+    "spicy|hot|fiery|chilli|masala|biryani|curry": [
+        {"name": "Egg White Bhurji with Multigrain Roti", "emoji": "🍳", "calories": 280, "protein": 22, "reasoning": "Spicy masala egg white bhurji delivers the heat you want with serious protein.", "youtube_query": "egg white bhurji healthy recipe"},
+        {"name": "Vegetable Biryani (Brown Rice)", "emoji": "🍛", "calories": 380, "protein": 10, "reasoning": "Aromatic spices and brown rice make this a fibre-rich, satisfying meal.", "youtube_query": "healthy vegetable biryani brown rice recipe"},
+        {"name": "Chicken Tikka (Grilled, No Cream)", "emoji": "🍗", "calories": 250, "protein": 30, "reasoning": "Marinated in spices and grilled dry — all the bold flavour, none of the excess fat.", "youtube_query": "healthy grilled chicken tikka recipe"},
+    ],
+    "crunchy|crispy|chips|fries|snack|namkeen": [
+        {"name": "Roasted Chana with Chaat Masala", "emoji": "🫘", "calories": 130, "protein": 8, "reasoning": "Super crunchy, high in protein, and way more satisfying than any packet of chips.", "youtube_query": "roasted chana chaat masala healthy snack"},
+        {"name": "Baked Sweet Potato Fries", "emoji": "🍠", "calories": 150, "protein": 2, "reasoning": "Oven-baked and lightly spiced — crispy fries without the deep fryer.", "youtube_query": "baked sweet potato fries healthy recipe"},
+        {"name": "Makhana Bhel", "emoji": "🟤", "calories": 110, "protein": 4, "reasoning": "Puffed lotus seeds tossed with spices — the perfect crunchy guilt-free snack.", "youtube_query": "makhana bhel healthy snack recipe"},
+    ],
+}
+
+_DEFAULT_FALLBACK = [
     {"name": "Vegetable Oats Upma",  "emoji": "🥣", "calories": 220, "protein": 7,  "reasoning": "Light, filling, and packed with fibre to keep you energised.", "youtube_query": "Vegetable Oats Upma recipe"},
     {"name": "Moong Dal Chilla",     "emoji": "🥞", "calories": 190, "protein": 11, "reasoning": "High-protein, quick to make, and naturally satisfying.", "youtube_query": "Moong Dal Chilla healthy recipe"},
     {"name": "Roasted Makhana Bowl", "emoji": "🟤", "calories": 110, "protein": 4,  "reasoning": "Crunchy, guilt-free, and perfect as a light snack anytime.", "youtube_query": "Roasted Makhana snack recipe"},
 ]
+
+
+def _smart_fallback(user_prompt: str) -> list:
+    """Return keyword-matched fallback suggestions based on the user's prompt text."""
+    import re
+    lower = user_prompt.lower()
+    for pattern, suggestions in _SUGGEST_FALLBACKS.items():
+        if re.search(pattern, lower):
+            log.info("Smart fallback matched pattern: '%s'", pattern)
+            return suggestions
+    log.info("Smart fallback: no keyword match, returning default suggestions")
+    return _DEFAULT_FALLBACK
 
 
 @app.post("/api/suggest/")
@@ -203,12 +263,14 @@ async def get_suggestions(req: PromptRequest):
         f"Their food allergies: {allergies_str}.\n"
         "You are a smart, friendly Indian nutritionist. Understand the mood and craving from the user's message "
         "and suggest exactly 3 healthy, satisfying meal ideas. "
-        "Prefer Indian dishes but allow global cuisine if the user asks for it (e.g. Italian, Chinese). "
+        "Prefer Indian dishes but allow global cuisine if the user explicitly asks for it (e.g. Italian, Chinese). "
         "Strictly avoid any allergens listed. Make suggestions feel exciting and achievable.\n"
-        "Return ONLY a JSON array of 3 objects, each with these keys:\n"
+        "Return ONLY a JSON array of 3 objects, each with these exact keys:\n"
         "name(string), emoji(string), calories(int), protein(int), "
-        "reasoning(string — one warm, encouraging sentence), youtube_query(string)"
+        "reasoning(string — one warm, encouraging sentence tailored to their specific request), youtube_query(string)"
     )
+
+    log.info("Suggest request — user prompt: '%s' | allergies: %s", user_prompt, req.allergies)
 
     try:
         raw = await asyncio.wait_for(
@@ -218,7 +280,8 @@ async def get_suggestions(req: PromptRequest):
         suggestions = json.loads(raw)
         if not isinstance(suggestions, list):
             suggestions = [suggestions]
-        return {"suggestions": suggestions[:3]}
+        log.info("Suggest: returning %d AI suggestions", len(suggestions[:3]))
+        return {"suggestions": suggestions[:3], "source": "gemini"}
     except Exception as e:
-        print(f"Suggest Error: {e}")
-        return {"suggestions": FALLBACK_SUGGESTIONS}
+        log.error("Suggest: Gemini failed → using smart fallback. Error: %s", e)
+        return {"suggestions": _smart_fallback(user_prompt), "source": "fallback"}
