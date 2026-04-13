@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Volume2, Youtube, Search } from 'lucide-react';
+import { Volume2, PlayCircle, Search } from 'lucide-react';
 import { speakText } from './utils';
 
 export default function Dashboard({ user }) {
@@ -162,7 +162,7 @@ export default function Dashboard({ user }) {
               marginTop: '15px'
             }}
           >
-            <Youtube color="#ef4444" /> Watch Recipe Video
+            <PlayCircle color="#ef4444" /> Watch Recipe Video
           </a>
         </div>
       ))}
