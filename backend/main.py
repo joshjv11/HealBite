@@ -63,6 +63,9 @@ def clean_json(raw: str) -> str:
     cleaned = re.sub(r"```\s*", "", cleaned)
     return cleaned.strip()
 
+def _is_quota_error(e: Exception) -> bool:
+    return "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+
 def _call_gemini(prompt: str, contents: list = None) -> str:
     payload = contents if contents else [prompt]
     log.info("━━━━━━━━━━━━ GEMINI REQUEST ━━━━━━━━━━━━")
@@ -145,6 +148,110 @@ _SUGGEST_FALLBACKS = {
         {"name": "Flaxseed Crackers",                    "emoji": "🟫", "calories": 100, "protein": 4,  "reasoning": "Omega-3 rich crunchy crackers — satisfies the snack urge and supports your heart.", "youtube_query": "healthy flaxseed crackers recipe"},
     ],
 }
+# ── Pantry fallbacks (keyword-matched) ───────────────────────
+_PANTRY_FALLBACKS = [
+    {
+        "pattern": r"egg|eggs",
+        "name": "Masala Egg Bhurji with Rice",
+        "emoji": "🍳",
+        "calories": 370,
+        "protein": 22,
+        "instructions": (
+            "Sauté finely chopped garlic and tomato in minimal oil until soft, "
+            "add your spices and stir for 30 seconds. Beat 2–3 eggs, pour in, and "
+            "scramble on medium heat until just set. Serve over steamed rice."
+        ),
+        "missing_basics": "oil, onion (optional)",
+    },
+    {
+        "pattern": r"paneer|cottage cheese",
+        "name": "Paneer Bhurji Wrap",
+        "emoji": "🧀",
+        "calories": 340,
+        "protein": 20,
+        "instructions": (
+            "Crumble paneer and sauté with diced tomato, garlic, and spices for 5 minutes. "
+            "Warm a roti or flatbread, fill with the paneer mixture, roll tightly, and serve."
+        ),
+        "missing_basics": "roti / flatbread",
+    },
+    {
+        "pattern": r"chicken|murgh",
+        "name": "Quick Garlic Chicken Stir-fry",
+        "emoji": "🍗",
+        "calories": 320,
+        "protein": 34,
+        "instructions": (
+            "Cut chicken into small pieces and marinate with spices for 5 minutes. "
+            "Sauté garlic until golden, add chicken, cook on high heat for 8–10 minutes "
+            "turning often. Finish with a squeeze of lemon."
+        ),
+        "missing_basics": "oil, lemon",
+    },
+    {
+        "pattern": r"potato|aloo",
+        "name": "Spiced Aloo Tomato Sabzi",
+        "emoji": "🥔",
+        "calories": 280,
+        "protein": 6,
+        "instructions": (
+            "Cube potatoes and boil until just tender, about 10 minutes. "
+            "Sauté garlic and chopped tomatoes with your spices until oil separates, "
+            "then add the potatoes and toss to coat. Cook another 5 minutes."
+        ),
+        "missing_basics": "oil, onion (optional)",
+    },
+    {
+        "pattern": r"rice|chawal",
+        "name": "Egg & Vegetable Fried Rice",
+        "emoji": "🍚",
+        "calories": 400,
+        "protein": 16,
+        "instructions": (
+            "Heat oil on high, scramble 2 eggs, then push to the side. "
+            "Add leftover or cooked rice and stir-fry for 3 minutes. "
+            "Mix in chopped tomato, garlic, salt and pepper, and toss everything together."
+        ),
+        "missing_basics": "oil, soy sauce (optional)",
+    },
+    {
+        "pattern": r"dal|lentil|moong|chana|masoor",
+        "name": "Simple Tadka Dal",
+        "emoji": "🍲",
+        "calories": 300,
+        "protein": 15,
+        "instructions": (
+            "Pressure-cook or boil your lentils until soft. "
+            "In a small pan heat oil, add garlic and spices until fragrant, "
+            "pour the tadka over the dal, stir and simmer 5 minutes. Serve with rice."
+        ),
+        "missing_basics": "oil, cumin seeds",
+    },
+]
+
+_PANTRY_DEFAULT = {
+    "name": "Spiced Scrambled Eggs on Toast",
+    "emoji": "🥚",
+    "calories": 280,
+    "protein": 18,
+    "instructions": (
+        "Beat your eggs with a pinch of salt, pepper, and any spice you have. "
+        "Cook in a lightly oiled pan on medium heat, stirring gently until just set. "
+        "Serve on toasted bread or with rice for a complete meal."
+    ),
+    "missing_basics": "oil, bread or rice",
+}
+
+def _pantry_fallback(ingredients: str) -> dict:
+    lower = ingredients.lower()
+    for entry in _PANTRY_FALLBACKS:
+        if re.search(entry["pattern"], lower):
+            result = {k: v for k, v in entry.items() if k != "pattern"}
+            log.info("Pantry fallback matched pattern: '%s'", entry["pattern"])
+            return result
+    log.info("Pantry fallback: no keyword match, using default.")
+    return _PANTRY_DEFAULT
+
 _DEFAULT_SUGGESTIONS = [
     {"name": "Vegetable Oats Upma",  "emoji": "🥣", "calories": 220, "protein": 7,  "reasoning": "Light, filling, and packed with fibre to keep you energised.", "youtube_query": "Vegetable Oats Upma recipe"},
     {"name": "Moong Dal Chilla",     "emoji": "🥞", "calories": 190, "protein": 11, "reasoning": "High-protein, quick to make, and naturally satisfying.", "youtube_query": "Moong Dal Chilla healthy recipe"},
@@ -235,6 +342,15 @@ If the image is NOT a medical lab report, return: {"is_medical_report": false, "
         raise HTTPException(status_code=500, detail="Gemini returned malformed data. Please try with a clearer image.")
     except Exception as e:
         log.error("Medical scan error: %s", e)
+        if _is_quota_error(e):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "API quota exhausted (limit: 0). Your Gemini key belongs to a project "
+                    "with zero free-tier quota. Go to aistudio.google.com/apikey → copy the key "
+                    "from the 'Default Gemini Project' row → paste it into backend/.env and restart."
+                ),
+            )
         raise HTTPException(status_code=500, detail="Failed to analyze report. Please ensure the image is clear and well-lit.")
 
 # ── 3. PERSONALIZED MEALS (CLINICAL-AWARE) ────────────────────
@@ -317,7 +433,10 @@ async def pantry_chef(req: PantryRequest):
         return json.loads(raw)
     except Exception as e:
         log.error("Pantry chef error: %s", e)
-        raise HTTPException(status_code=500, detail="Pantry chef couldn't generate a recipe. Try again.")
+        # Graceful offline fallback — never show a 500 for this feature
+        fallback = _pantry_fallback(req.ingredients)
+        log.info("Pantry: returning offline fallback recipe '%s'", fallback["name"])
+        return {**fallback, "source": "fallback"}
 
 # ── 5. DAILY TRACKER ──────────────────────────────────────────
 @app.post("/api/log-meal/")

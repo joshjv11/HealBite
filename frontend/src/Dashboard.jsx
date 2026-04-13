@@ -180,6 +180,9 @@ export default function Dashboard({ user: initialUser }) {
         target_cal: user.target_cal,
       });
       setPantryResult(res.data);
+      if (res.data.source === 'fallback') {
+        toast('AI offline — showing our best offline recipe match.', { icon: '📖', ...TOAST_STYLE });
+      }
       speakText(`Recipe ready: ${res.data.name}`, lang);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Pantry chef failed.', TOAST_STYLE);
@@ -233,7 +236,16 @@ export default function Dashboard({ user: initialUser }) {
       fetchMeals();
       setActiveTab('plan');
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to scan report.', TOAST_STYLE);
+      const detail = err.response?.data?.detail || 'Failed to scan report.';
+      const isQuota = err.response?.status === 503 || detail.includes('quota');
+      if (isQuota) {
+        toast.error(
+          '⚠ Gemini API quota is 0. Get a valid key from aistudio.google.com/apikey (Default Gemini Project row).',
+          { duration: 8000, ...TOAST_STYLE }
+        );
+      } else {
+        toast.error(detail, TOAST_STYLE);
+      }
     }
     setLoadingReport(false);
   };
@@ -623,7 +635,14 @@ export default function Dashboard({ user: initialUser }) {
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-8 bg-surface-container-highest p-6 rounded-2xl border border-tertiary/20"
                   >
-                    <span className="text-5xl drop-shadow-lg">{pantryResult.emoji}</span>
+                    <div className="flex items-start justify-between">
+                      <span className="text-5xl drop-shadow-lg">{pantryResult.emoji}</span>
+                      {pantryResult.source === 'fallback' && (
+                        <span className="font-label text-[10px] text-tertiary bg-tertiary/10 px-2.5 py-1 rounded-full border border-tertiary/20 uppercase tracking-widest">
+                          offline recipe
+                        </span>
+                      )}
+                    </div>
                     <h3 className="font-headline text-2xl italic text-tertiary mt-4 mb-2">{pantryResult.name}</h3>
                     <p className="font-label text-sm text-on-surface-variant mb-5 leading-relaxed">{pantryResult.instructions}</p>
                     <div className="flex gap-3 flex-wrap">
@@ -655,10 +674,24 @@ export default function Dashboard({ user: initialUser }) {
                 <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-error/40 via-error to-error/40" />
 
                 <h2 className="font-headline text-3xl italic text-error mb-2">Clinical Lab</h2>
-                <p className="font-label text-xs text-on-surface-variant mb-8 leading-relaxed">
+                <p className="font-label text-xs text-on-surface-variant mb-4 leading-relaxed">
                   Upload a Lipid Profile or Blood Report. Gemini Vision will extract metabolic markers and{' '}
                   <span className="text-on-surface font-semibold">rewrite your entire diet plan</span> around them.
                 </p>
+
+                {/* API Key helper banner */}
+                <div className="mb-6 bg-surface-container p-4 rounded-xl border border-outline-variant/20 text-xs font-label text-on-surface-variant leading-relaxed">
+                  <p className="text-tertiary font-bold uppercase tracking-widest mb-1 text-[10px]">⚠ API Key Required</p>
+                  This feature requires a working Gemini API key. Your current key has{' '}
+                  <span className="text-error font-bold">quota: 0</span> on all models.{' '}
+                  Fix it in 30 seconds:{' '}
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer"
+                    className="text-primary underline hover:text-primary-fixed">
+                    aistudio.google.com/apikey
+                  </a>
+                  {' '}→ copy the key from the <span className="text-on-surface font-semibold">"Default Gemini Project"</span> row
+                  → paste into <code className="bg-surface-container-high px-1 rounded text-primary">backend/.env</code> → restart backend.
+                </div>
 
                 {/* Drop zone */}
                 <div className="relative border-2 border-dashed border-error/25 rounded-2xl text-center hover:bg-surface-container transition-colors mb-6 overflow-hidden group cursor-pointer">
