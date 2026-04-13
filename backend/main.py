@@ -7,7 +7,8 @@ from models import UserCreate, AlternativeRequest
 from bson import ObjectId
 from bson.errors import InvalidId
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 load_dotenv()
 
@@ -15,10 +16,8 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key or api_key == "your_actual_api_key_goes_here":
     raise RuntimeError("GEMINI_API_KEY is not set in backend/.env")
 
-genai.configure(api_key=api_key)
-
-generation_config = {"response_mime_type": "application/json"}
-model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
+client = genai.Client(api_key=api_key)
+JSON_CONFIG = types.GenerateContentConfig(response_mime_type="application/json")
 
 app = FastAPI()
 
@@ -86,7 +85,7 @@ async def get_personalized_meals(user_id: str):
     "Small Meal", "Avg Meal", "Tiny/Craving"
 
     Rules:
-    - Total calories should be close to the target.
+    - Total calories should be close to the calorie target.
     - Strictly avoid all allergens listed above.
     - All dishes must be authentic and commonly eaten in India.
 
@@ -98,11 +97,15 @@ async def get_personalized_meals(user_id: str):
     "carbs" (number in grams),
     "fats" (number in grams),
     "emoji" (string - a single food emoji representing the dish),
-    "youtube_query" (string - what to search YouTube for, e.g. "Healthy Poha recipe Hindi")
+    "youtube_query" (string - what to search YouTube for, e.g. "Healthy Poha recipe")
     """
 
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt,
+            config=JSON_CONFIG,
+        )
         meals = json.loads(response.text)
         if not isinstance(meals, list):
             meals = [meals]
@@ -111,7 +114,7 @@ async def get_personalized_meals(user_id: str):
         return {"meals": meals, "user": format_doc(user)}
     except Exception as e:
         print(f"Gemini Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate AI meal plan. Check your API key.")
+        raise HTTPException(status_code=500, detail="Failed to generate AI meal plan.")
 
 
 @app.post("/api/alternatives/")
@@ -134,7 +137,11 @@ async def get_alternative(req: AlternativeRequest):
     """
 
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt,
+            config=JSON_CONFIG,
+        )
         alternative = json.loads(response.text)
         return alternative
     except Exception as e:
