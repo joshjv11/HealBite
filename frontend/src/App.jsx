@@ -37,10 +37,15 @@ export default function App() {
   /* ── Voice Input ──────────────────────────────── */
   const handleListen = (field) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { toast.error("Voice not supported. Please type."); return; }
+    if (!SR) {
+      toast.error("Voice input not supported in this browser. Please use Chrome.");
+      return;
+    }
 
+    // Toggle off if already listening
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
       setIsListening(false);
       return;
     }
@@ -49,25 +54,43 @@ export default function App() {
     recognitionRef.current = recognition;
     recognition.lang = form.language === 'Hindi' ? 'hi-IN' : 'en-IN';
     recognition.interimResults = false;
+    recognition.continuous = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart  = () => setIsListening(true);
-    recognition.onend    = () => setIsListening(false);
-    recognition.onerror  = (e) => {
-      if (e.error !== 'no-speech') toast.error("Didn't catch that. Try again.");
-      setIsListening(false);
-    };
+    recognition.onstart = () => setIsListening(true);
+
     recognition.onresult = (e) => {
-      // Preserve Unicode letters so Hindi text is NOT stripped
       const raw = e.results[0][0].transcript;
+      // Preserve Unicode letters (Hindi Devanagari, etc.) — only strip punctuation
       const clean = raw.replace(/[^\p{L}\p{N}\p{Zs}]/gu, '').trim();
       setForm(prev => ({ ...prev, [field]: clean }));
     };
 
+    recognition.onerror = (e) => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+        toast.error("Microphone access denied. Allow mic in browser settings.");
+      } else if (e.error === 'no-speech') {
+        toast("No speech detected. Tap mic and try again.", { icon: '🎙️' });
+      } else if (e.error === 'audio-capture') {
+        toast.error("No microphone found. Please connect one and try again.");
+      } else {
+        toast.error(`Voice error: ${e.error}. Please type instead.`);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
     try {
       recognition.start();
-      setTimeout(() => { try { recognition.stop(); } catch (_) {} }, 6000);
-    } catch (_) { setIsListening(false); }
+    } catch (err) {
+      setIsListening(false);
+      toast.error("Could not start microphone. Please type instead.");
+    }
   };
 
   /* ── Validation ───────────────────────────────── */
@@ -198,7 +221,7 @@ export default function App() {
                   <div>
                     <h1 className="text-2xl font-black text-slate-800 leading-tight">Welcome to</h1>
                     <h1 className="text-2xl font-black bg-gradient-to-r from-brand-500 to-brand-700 bg-clip-text text-transparent leading-tight">AaharVoice</h1>
-                    <p className="text-slate-400 text-sm mt-2 font-medium">Your AI-powered Indian nutrition companion</p>
+                    <p className="text-slate-400 text-sm mt-2 font-medium">Your personal Indian nutrition companion</p>
                   </div>
 
                   <div className="flex flex-col gap-3 mt-2">
@@ -216,7 +239,7 @@ export default function App() {
                     </button>
                   </div>
 
-                  <p className="text-xs text-slate-300 font-medium mt-1">Powered by Google Gemini AI</p>
+                  <p className="text-xs text-slate-300 font-medium mt-1">Your personal Indian nutrition companion</p>
                 </motion.div>
               )}
 
@@ -385,7 +408,7 @@ export default function App() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                         </svg>
-                        Generating AI Plan…
+                        Generating your plan…
                       </>
                     ) : (
                       <>✨ Generate My Plan</>

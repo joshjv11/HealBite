@@ -16,8 +16,12 @@ echo ""
 echo "▶ Checking MongoDB..."
 if ! pgrep -x "mongod" > /dev/null; then
   echo "  Starting MongoDB via Homebrew..."
+  # Remove stale lock file that can block launchctl bootstrap
+  rm -f /opt/homebrew/var/mongodb/mongod.lock 2>/dev/null
+  brew services stop mongodb/brew/mongodb-community 2>/dev/null
+  sleep 1
   brew services start mongodb/brew/mongodb-community
-  sleep 2
+  sleep 3
   if ! pgrep -x "mongod" > /dev/null; then
     echo "  ⚠ MongoDB failed to start. Check: brew services list"
     exit 1

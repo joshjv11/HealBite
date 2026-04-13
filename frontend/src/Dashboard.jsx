@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Volume2, PlayCircle, Search, Loader2, Flame, Beef, Wheat, Droplets, Zap } from 'lucide-react';
+import { Volume2, PlayCircle, Search, Loader2, Flame, Beef, Wheat, Droplets, Zap, RefreshCw } from 'lucide-react';
 import { speakText } from './utils';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -15,9 +15,9 @@ function bmiInfo(bmi) {
 
 /* ── Category styling ────────────────────────── */
 const CATEGORY_STYLE = {
-  'Small Meal':   { border: 'border-l-blue-400',   badge: 'bg-blue-50 text-blue-600',   icon: '🌅' },
-  'Avg Meal':     { border: 'border-l-brand-400',  badge: 'bg-brand-50 text-brand-700', icon: '☀️' },
-  'Tiny/Craving': { border: 'border-l-purple-400', badge: 'bg-purple-50 text-purple-600', icon: '🌙' },
+  'Small Meal':   { border: 'border-l-sky-400',    badge: 'bg-sky-50 text-sky-600',      icon: '🌅', label: 'Light' },
+  'Avg Meal':     { border: 'border-l-brand-400',  badge: 'bg-brand-50 text-brand-700',  icon: '☀️', label: 'Main'  },
+  'Tiny/Craving': { border: 'border-l-violet-400', badge: 'bg-violet-50 text-violet-600',icon: '🌙', label: 'Snack' },
 };
 
 /* ── Shimmer skeleton card ─────────────────── */
@@ -67,19 +67,23 @@ export default function Dashboard({ user }) {
   const lang   = isHindi ? 'hi-IN' : 'en-IN';
 
   /* ── Fetch meals ────────────────────────── */
-  useEffect(() => {
+  const fetchMeals = useCallback(() => {
+    setLoading(true);
+    setMeals([]);
+    setVisibleMeals([]);
     axios
       .get(`http://127.0.0.1:8000/api/meals/${user.id}`)
       .then(res => {
         setMeals(res.data.meals);
-        // Stagger cards appearing
         res.data.meals.forEach((_, i) => {
-          setTimeout(() => setVisibleMeals(prev => [...prev, i]), i * 150);
+          setTimeout(() => setVisibleMeals(prev => [...prev, i]), i * 120);
         });
       })
-      .catch(() => toast.error('Failed to generate AI meals. Check your API key.'))
+      .catch(() => toast.error('Failed to load meals. Check your connection.'))
       .finally(() => setLoading(false));
   }, [user.id]);
+
+  useEffect(() => { fetchMeals(); }, [fetchMeals]);
 
   /* ── Craving engine ─────────────────────── */
   const findAlternative = async () => {
@@ -91,7 +95,7 @@ export default function Dashboard({ user }) {
       setAlternative(res.data);
       speakText(`Instead of ${craving}, try ${res.data.name}. ${res.data.reasoning}`, lang);
     } catch {
-      toast.error("AI couldn't process this craving. Try again.");
+      toast.error("Couldn't find an alternative right now. Try again.");
     } finally {
       setSearching(false);
     }
@@ -181,7 +185,7 @@ export default function Dashboard({ user }) {
             <h3 className="font-black text-slate-800 flex items-center gap-2">
               <span className="text-xl">🤔</span> Craving something unhealthy?
             </h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Get an AI-powered healthy Indian alternative</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">Get a personalised healthy Indian alternative</p>
           </div>
 
           <div className="p-5">
@@ -231,29 +235,37 @@ export default function Dashboard({ user }) {
 
         {/* ── Meal Plan ──────────────────── */}
         <div>
-          <motion.h2
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-            className="text-lg font-black text-slate-700 px-1 mb-3 flex items-center gap-2"
+            className="flex items-center justify-between px-1 mb-3"
           >
-            ✨ Your AI Meal Plan
-            {!loading && meals.length > 0 && (
-              <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                {meals.length} meals
-              </span>
-            )}
-          </motion.h2>
+            <h2 className="text-lg font-black text-slate-700 flex items-center gap-2">
+              🍽️ Your Meal Plan
+              {!loading && meals.length > 0 && (
+                <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {meals.length} meals
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={fetchMeals}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-full transition-all disabled:opacity-50 active:scale-95"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              Generate Meal
+            </button>
+          </motion.div>
 
           {loading ? (
             <div className="space-y-4">
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
+              {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : meals.length === 0 ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-100 shadow-card">
-              <p className="text-4xl mb-3">🤖</p>
+              <p className="text-4xl mb-3">🍽️</p>
               <p className="font-bold text-slate-600">No meals returned.</p>
-              <p className="text-sm text-slate-400 mt-1">Check your Gemini API key in backend/.env</p>
+              <p className="text-sm text-slate-400 mt-1">Check your backend connection and try again.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -273,7 +285,7 @@ export default function Dashboard({ user }) {
                       {/* Header row */}
                       <div className="flex justify-between items-center mb-3">
                         <span className={`text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1 ${style.badge}`}>
-                          {style.icon} {meal.category.toUpperCase()}
+                          {style.icon} {style.label}
                         </span>
                         <button
                           onClick={() => playMealAudio(meal)}
