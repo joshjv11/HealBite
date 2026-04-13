@@ -1,9 +1,24 @@
+import os
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from database import user_collection
 from models import UserCreate, AlternativeRequest
-from database import user_collection, food_collection, alt_collection
 from bson import ObjectId
 from bson.errors import InvalidId
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key or api_key == "your_actual_api_key_goes_here":
+    raise RuntimeError("GEMINI_API_KEY is not set in backend/.env")
+
+genai.configure(api_key=api_key)
+
+generation_config = {"response_mime_type": "application/json"}
+model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
 
 app = FastAPI()
 
@@ -33,15 +48,15 @@ def parse_object_id(user_id: str) -> ObjectId:
 async def create_user(user_data: UserCreate):
     data = user_data.model_dump()
 
-    height_m = data['height_cm'] / 100
-    data['bmi'] = round(data['current_weight'] / (height_m * height_m), 2) if height_m > 0 else 0
+    height_m = data["height_cm"] / 100
+    data["bmi"] = round(data["current_weight"] / (height_m * height_m), 2) if height_m > 0 else 0
 
-    if data['current_weight'] > data['target_weight']:
-        data['target_cal'] = 1600
+    if data["current_weight"] > data["target_weight"]:
+        data["target_cal"] = 1600
     else:
-        data['target_cal'] = 2200
+        data["target_cal"] = 2200
 
-    data['target_protein'] = round(data['current_weight'] * 1.2)
+    data["target_protein"] = round(data["current_weight"] * 1.2)
 
     new_user = await user_collection.insert_one(data)
     created = await user_collection.find_one({"_id": new_user.inserted_id})
@@ -55,114 +70,73 @@ async def get_personalized_meals(user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # If the user chose "All" regions, include every region; otherwise include
-    # their specific region plus items tagged "All" (available everywhere)
-    if user["region"] == "All":
-        region_filter = {"$in": ["North", "South", "All"]}
-    else:
-        region_filter = {"$in": [user["region"], "All"]}
+    allergies_str = ", ".join(user["allergies"]) if user["allergies"] else "None"
 
-    query = {
-        "region": region_filter,
-        "allergens": {"$nin": user["allergies"]}
-    }
+    prompt = f"""
+    You are an expert Indian clinical nutritionist.
+    Create a highly personalized 1-day meal plan for an Indian user.
 
-    meals = []
-    async for food in food_collection.find(query):
-        meals.append(format_doc(food))
+    User Profile:
+    - Region Preference: {user["region"]} Indian
+    - Allergies / Foods to Avoid: {allergies_str}
+    - Daily Calorie Target: {user["target_cal"]} kcal
+    - Daily Protein Target: {user["target_protein"]} g
 
-    return {"meals": meals, "user": format_doc(user)}
+    Generate exactly 3 meals with these categories (one each):
+    "Small Meal", "Avg Meal", "Tiny/Craving"
+
+    Rules:
+    - Total calories should be close to the target.
+    - Strictly avoid all allergens listed above.
+    - All dishes must be authentic and commonly eaten in India.
+
+    Return a strict JSON Array of objects. Each object must have exactly these keys:
+    "name" (string - dish name),
+    "category" (string - one of the three categories above),
+    "calories" (number),
+    "protein" (number in grams),
+    "carbs" (number in grams),
+    "fats" (number in grams),
+    "emoji" (string - a single food emoji representing the dish),
+    "youtube_query" (string - what to search YouTube for, e.g. "Healthy Poha recipe Hindi")
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        meals = json.loads(response.text)
+        if not isinstance(meals, list):
+            meals = [meals]
+        for i, meal in enumerate(meals):
+            meal["id"] = f"gemini_meal_{i}"
+        return {"meals": meals, "user": format_doc(user)}
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate AI meal plan. Check your API key.")
 
 
 @app.post("/api/alternatives/")
 async def get_alternative(req: AlternativeRequest):
-    craving = req.craving.strip().lower()
-    alt_mapping = await alt_collection.find_one({"trigger": craving})
+    craving = req.craving.strip()
+    if not craving:
+        raise HTTPException(status_code=400, detail="Craving cannot be empty.")
 
-    if alt_mapping:
-        healthy_food = await food_collection.find_one({"name": alt_mapping["healthy_option"]})
-        if healthy_food:
-            return format_doc(healthy_food)
+    prompt = f"""
+    The user is craving the following unhealthy food: "{craving}".
+    Suggest a healthy, culturally relevant Indian alternative that satisfies the same craving type
+    (e.g. sweet craving → healthy Indian sweet; crunchy craving → healthy Indian snack).
 
-    raise HTTPException(
-        status_code=404,
-        detail="No healthy alternative found. Try searching for 'chocolate' or 'chips'."
-    )
+    Return a strict JSON object with exactly these keys:
+    "name" (string - the healthy Indian alternative dish name),
+    "calories" (number - approximate per serving),
+    "protein" (number - grams per serving),
+    "emoji" (string - a single food emoji representing it),
+    "reasoning" (string - one encouraging sentence explaining why this is better than {craving})
+    """
 
-
-@app.post("/api/seed/")
-async def seed_db():
-    await food_collection.delete_many({})
-    await alt_collection.delete_many({})
-
-    foods = [
-        {
-            "name": "Poha",
-            "category": "Small Meal",
-            "region": "North",
-            "calories": 250,
-            "protein": 5,
-            "carbs": 45,
-            "fats": 7,
-            "allergens": ["peanut"],
-            "image_url": "https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=500",
-            "video_url": "https://youtube.com"
-        },
-        {
-            "name": "Idli Sambar",
-            "category": "Avg Meal",
-            "region": "South",
-            "calories": 300,
-            "protein": 10,
-            "carbs": 50,
-            "fats": 5,
-            "allergens": [],
-            "image_url": "https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=500",
-            "video_url": "https://youtube.com"
-        },
-        {
-            "name": "Dal Makhani & Roti",
-            "category": "Avg Meal",
-            "region": "North",
-            "calories": 450,
-            "protein": 15,
-            "carbs": 60,
-            "fats": 12,
-            "allergens": ["dairy", "gluten"],
-            "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500",
-            "video_url": "https://youtube.com"
-        },
-        {
-            "name": "Jaggery Peanut Chikki",
-            "category": "Tiny/Craving",
-            "region": "All",
-            "calories": 150,
-            "protein": 6,
-            "carbs": 20,
-            "fats": 8,
-            "allergens": ["peanut"],
-            "image_url": "https://m.media-amazon.com/images/I/61H4N+R98VL.jpg",
-            "video_url": "https://youtube.com"
-        },
-        {
-            "name": "Roasted Makhana",
-            "category": "Tiny/Craving",
-            "region": "All",
-            "calories": 100,
-            "protein": 3,
-            "carbs": 20,
-            "fats": 2,
-            "allergens": [],
-            "image_url": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=500",
-            "video_url": "https://youtube.com"
-        }
-    ]
-    await food_collection.insert_many(foods)
-
-    alts = [
-        {"trigger": "chocolate", "healthy_option": "Jaggery Peanut Chikki"},
-        {"trigger": "chips", "healthy_option": "Roasted Makhana"}
-    ]
-    await alt_collection.insert_many(alts)
-
-    return {"message": "Database successfully populated!"}
+    try:
+        response = model.generate_content(prompt)
+        alternative = json.loads(response.text)
+        return alternative
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+        raise HTTPException(status_code=500, detail="AI could not process this craving right now.")
