@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 
 class UserCreate(BaseModel):
@@ -13,19 +13,6 @@ class UserCreate(BaseModel):
     medical_conditions: List[str] = []
 
 
-class FoodItem(BaseModel):
-    name: str
-    category: str  # "Tiny/Craving", "Small Meal", "Avg Meal"
-    region: str    # "North", "South", "All"
-    calories: int
-    protein: int
-    carbs: int
-    fats: int
-    allergens: List[str] = []
-    image_url: str
-    video_url: str
-
-
 class AlternativeRequest(BaseModel):
     craving: str
 
@@ -33,3 +20,16 @@ class AlternativeRequest(BaseModel):
 class PromptRequest(BaseModel):
     prompt: str
     allergies: List[str] = []
+
+
+class PantryRequest(BaseModel):
+    ingredients: str
+    allergies: List[str] = []
+    target_cal: int
+
+
+class LogMealRequest(BaseModel):
+    user_id: str
+    meal_name: str
+    calories: int
+    protein: int
