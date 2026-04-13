@@ -239,6 +239,11 @@ _SUGGEST_FALLBACKS = {
         {"name": "Vegetable Biryani (Brown Rice)", "emoji": "🍛", "calories": 380, "protein": 10, "reasoning": "Aromatic spices and brown rice make this a fibre-rich, satisfying meal.", "youtube_query": "healthy vegetable biryani brown rice recipe"},
         {"name": "Chicken Tikka (Grilled, No Cream)", "emoji": "🍗", "calories": 250, "protein": 30, "reasoning": "Marinated in spices and grilled dry — all the bold flavour, none of the excess fat.", "youtube_query": "healthy grilled chicken tikka recipe"},
     ],
+    "burger|cheeseburger|sandwich|patty|bun|fast food|junk": [
+        {"name": "Whole Wheat Chicken Burger (Grilled)", "emoji": "🍔", "calories": 380, "protein": 28, "reasoning": "All the burger vibes — grilled chicken, whole wheat bun, fresh veggies, way less guilt.", "youtube_query": "healthy grilled chicken burger whole wheat recipe"},
+        {"name": "Rajma Patty Wrap",                    "emoji": "🌯", "calories": 320, "protein": 14, "reasoning": "A desi burger alternative — spiced rajma patty in a multigrain wrap with mint chutney.", "youtube_query": "rajma patty wrap healthy recipe"},
+        {"name": "Egg White Omelette Sandwich",          "emoji": "🥚", "calories": 260, "protein": 22, "reasoning": "High-protein egg white omelette stacked between multigrain toast — satisfies that handheld craving.", "youtube_query": "egg white omelette sandwich healthy recipe"},
+    ],
     "crunchy|crispy|chips|fries|snack|namkeen": [
         {"name": "Roasted Chana with Chaat Masala", "emoji": "🫘", "calories": 130, "protein": 8, "reasoning": "Super crunchy, high in protein, and way more satisfying than any packet of chips.", "youtube_query": "roasted chana chaat masala healthy snack"},
         {"name": "Baked Sweet Potato Fries", "emoji": "🍠", "calories": 150, "protein": 2, "reasoning": "Oven-baked and lightly spiced — crispy fries without the deep fryer.", "youtube_query": "baked sweet potato fries healthy recipe"},
