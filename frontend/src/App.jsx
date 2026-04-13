@@ -16,9 +16,10 @@ const ALLERGEN_META = {
 };
 
 const REGION_OPTIONS = [
-  { value: 'North', emoji: '🫓', label: 'North Indian', desc: 'Roti, dal, paneer' },
-  { value: 'South', emoji: '🍛', label: 'South Indian', desc: 'Rice, sambar, idli' },
-  { value: 'All',   emoji: '🇮🇳', label: 'Mix of Both',  desc: 'Best of India' },
+  { value: 'North',    emoji: '🫓', label: 'North Indian', desc: 'Roti, dal, paneer'         },
+  { value: 'South',    emoji: '🍛', label: 'South Indian', desc: 'Rice, sambar, idli'         },
+  { value: 'All',      emoji: '🇮🇳', label: 'Mix of Both',  desc: 'Best of India'              },
+  { value: 'Western',  emoji: '🥗', label: 'Western',       desc: 'Salads, wraps, grilled'    },
 ];
 
 export default function App() {

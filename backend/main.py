@@ -58,6 +58,14 @@ FALLBACK_MEALS = {
         {"id": "f4", "name": "Roasted Chana",            "category": "Tiny/Craving", "calories": 120, "protein": 7,  "carbs": 18, "fats": 3,  "emoji": "🫘", "youtube_query": "Roasted Chana healthy snack"},
         {"id": "f5", "name": "Sprouts Salad",            "category": "Tiny/Craving", "calories": 110, "protein": 8,  "carbs": 15, "fats": 2,  "emoji": "🌱", "youtube_query": "Sprouts salad recipe healthy"},
     ],
+    "Western": [
+        {"id": "f0", "name": "Greek Yogurt Parfait",     "category": "Small Meal",   "calories": 210, "protein": 14, "carbs": 28, "fats": 4,  "emoji": "🫙", "youtube_query": "Greek yogurt parfait healthy recipe"},
+        {"id": "f1", "name": "Avocado Toast on Multigrain", "category": "Small Meal","calories": 240, "protein": 8,  "carbs": 30, "fats": 11, "emoji": "🥑", "youtube_query": "healthy avocado toast recipe"},
+        {"id": "f2", "name": "Grilled Chicken Wrap",     "category": "Avg Meal",     "calories": 410, "protein": 32, "carbs": 38, "fats": 10, "emoji": "🌯", "youtube_query": "healthy grilled chicken wrap recipe"},
+        {"id": "f3", "name": "Quinoa Power Bowl",        "category": "Avg Meal",     "calories": 430, "protein": 18, "carbs": 52, "fats": 12, "emoji": "🥗", "youtube_query": "quinoa power bowl healthy recipe"},
+        {"id": "f4", "name": "Mixed Nuts & Dried Fruit", "category": "Tiny/Craving", "calories": 130, "protein": 4,  "carbs": 14, "fats": 8,  "emoji": "🥜", "youtube_query": "healthy mixed nuts dried fruit snack"},
+        {"id": "f5", "name": "Hummus with Veggie Sticks","category": "Tiny/Craving", "calories": 100, "protein": 4,  "carbs": 10, "fats": 5,  "emoji": "🥕", "youtube_query": "hummus veggie sticks healthy snack"},
+    ],
 }
 
 app = FastAPI()
@@ -137,8 +145,15 @@ async def get_personalized_meals(user_id: str):
     allergies_str = ", ".join(user["allergies"]) if user["allergies"] else "none"
     region = user.get("region", "All")
 
+    cuisine_desc = {
+        "North":   "North Indian (roti, dal, paneer, sabzi style dishes)",
+        "South":   "South Indian (rice, sambar, idli, dosa style dishes)",
+        "All":     "pan-Indian mixing North and South Indian dishes",
+        "Western": "Western / continental (salads, wraps, grilled proteins, bowls, smoothies)",
+    }.get(region, "Indian")
+
     prompt = (
-        f"Indian nutritionist. Return a JSON array of exactly 6 meal objects for a {region} Indian user.\n"
+        f"You are a nutritionist. Return a JSON array of exactly 6 meal objects suited for {cuisine_desc} cuisine.\n"
         f"Allergies to avoid: {allergies_str}. Daily target: {user['target_cal']} kcal, {user['target_protein']}g protein.\n"
         "Categories (2 of each): 'Small Meal', 'Avg Meal', 'Tiny/Craving'.\n"
         "Each object keys: name, category, calories(int), protein(int), carbs(int), fats(int), emoji, youtube_query.\n"
