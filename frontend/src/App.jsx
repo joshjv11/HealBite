@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import {
   Mic, MicOff, ArrowRight, ArrowLeft,
-  AlertCircle, Weight, Ruler, Target,
+  AlertCircle, Weight, Ruler, Target, Activity,
+  Plus, Minus, Volume2,
 } from 'lucide-react';
 import { speakText } from './utils';
 import Dashboard from './Dashboard';
@@ -10,6 +11,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 
 const TOTAL_STEPS = 3;
+
+const SUPPORTED_LANGUAGES = [
+  { code: 'hi-IN', label: 'हिंदी',    englishLabel: 'Hindi',    icon: '🇮🇳' },
+  { code: 'mr-IN', label: 'मराठी',   englishLabel: 'Marathi',  icon: '🚩' },
+  { code: 'ta-IN', label: 'தமிழ்',    englishLabel: 'Tamil',    icon: '🛕' },
+  { code: 'bn-IN', label: 'বাংলা',    englishLabel: 'Bengali',  icon: '🐅' },
+  { code: 'gu-IN', label: 'ગુજરાતી',  englishLabel: 'Gujarati', icon: '🪁' },
+  { code: 'en-IN', label: 'English',  englishLabel: 'English',  icon: 'A'  },
+];
 
 const ALLERGEN_META = {
   peanut: { emoji: '🥜', label: 'Peanut' },
@@ -39,43 +49,55 @@ const TOAST_STYLE = {
 export default function App() {
   const [step, setStep]         = useState(0);
   const [userData, setUserData] = useState(null);
-  const [isListening, setIsListening] = useState(false);
-  const [submitting, setSubmitting]   = useState(false);
+  const [listeningField, setListeningField] = useState(null); // null | field name
+  const [submitting, setSubmitting]         = useState(false);
   const recognitionRef = useRef(null);
 
   const [form, setForm] = useState({
-    name: '', language: 'English', region: 'North',
-    current_weight: '', target_weight: '', height_cm: '',
+    name: '', language: 'en-IN', region: 'North',
+    age: '', current_weight: '', target_weight: '', height_cm: '',
     allergies: [], medical_conditions: [],
   });
 
   /* ── Voice Input ──────────────────────────────── */
+  const NUMERIC_FIELDS = new Set(['current_weight', 'target_weight', 'height_cm']);
+
   const handleListen = (field) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast.error("Voice not supported. Use Chrome.", TOAST_STYLE); return; }
 
-    if (isListening && recognitionRef.current) {
+    if (listeningField === field && recognitionRef.current) {
       recognitionRef.current.abort();
       recognitionRef.current = null;
-      setIsListening(false);
+      setListeningField(null);
       return;
     }
 
+    // Stop any currently running recognition before starting a new one
+    if (recognitionRef.current) { recognitionRef.current.abort(); recognitionRef.current = null; }
+
     const recognition = new SR();
     recognitionRef.current = recognition;
-    recognition.lang = form.language === 'Hindi' ? 'hi-IN' : 'en-IN';
+    recognition.lang = form.language || 'en-IN';
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart  = () => setIsListening(true);
+    recognition.onstart  = () => setListeningField(field);
     recognition.onresult = (e) => {
-      const raw   = e.results[0][0].transcript;
-      const clean = raw.replace(/[^\p{L}\p{N}\p{Zs}]/gu, '').trim();
-      setForm(prev => ({ ...prev, [field]: clean }));
+      const raw = e.results[0][0].transcript;
+      let value;
+      if (NUMERIC_FIELDS.has(field)) {
+        // Extract the first number spoken (handles "seventy five kilos" → "75")
+        const match = raw.match(/\d+(\.\d+)?/);
+        value = match ? match[0] : raw.replace(/[^\d.]/g, '').trim();
+      } else {
+        value = raw.replace(/[^\p{L}\p{N}\p{Zs}]/gu, '').trim();
+      }
+      setForm(prev => ({ ...prev, [field]: value }));
     };
     recognition.onerror = async (e) => {
-      setIsListening(false);
+      setListeningField(null);
       recognitionRef.current = null;
       if (e.error === 'not-allowed') {
         toast.error("Microphone access denied. Allow mic in browser settings.", TOAST_STYLE);
@@ -94,21 +116,23 @@ export default function App() {
         toast.error(`Voice error: ${e.error}. Please type instead.`, TOAST_STYLE);
       }
     };
-    recognition.onend = () => { setIsListening(false); recognitionRef.current = null; };
+    recognition.onend = () => { setListeningField(null); recognitionRef.current = null; };
 
-    try { recognition.start(); } catch { setIsListening(false); toast.error("Could not start microphone.", TOAST_STYLE); }
+    try { recognition.start(); } catch { setListeningField(null); toast.error("Could not start microphone.", TOAST_STYLE); }
   };
 
   /* ── Validation ───────────────────────────────── */
   const validateAndNext = (target) => {
     if (step === 1 && !form.name.trim()) return toast.error('Please enter your name.', TOAST_STYLE);
     if (step === 2) {
-      const cw = parseFloat(form.current_weight);
-      const tw = parseFloat(form.target_weight);
-      const h  = parseFloat(form.height_cm);
-      if (!cw || cw < 20 || cw > 300) return toast.error('Weight must be 20–300 kg.', TOAST_STYLE);
-      if (!tw || tw < 20 || tw > 300) return toast.error('Target weight must be 20–300 kg.', TOAST_STYLE);
-      if (!h  || h  < 90 || h  > 250) return toast.error('Height must be 90–250 cm.', TOAST_STYLE);
+      const age = parseInt(form.age);
+      const cw  = parseFloat(form.current_weight);
+      const tw  = parseFloat(form.target_weight);
+      const h   = parseFloat(form.height_cm);
+      if (!age || age < 10 || age > 100) return toast.error('Age must be 10–100 years.', TOAST_STYLE);
+      if (!cw  || cw  < 20 || cw  > 300) return toast.error('Weight must be 20–300 kg.', TOAST_STYLE);
+      if (!tw  || tw  < 20 || tw  > 300) return toast.error('Target weight must be 20–300 kg.', TOAST_STYLE);
+      if (!h   || h   < 90 || h   > 250) return toast.error('Height must be 90–250 cm.', TOAST_STYLE);
     }
     setStep(target);
   };
@@ -153,7 +177,7 @@ export default function App() {
       <div className="w-full max-w-sm">
         {/* Brand mark */}
         <div className="text-center mb-8">
-          <span className="font-headline text-4xl italic text-on-surface tracking-tight">AaharVoice</span>
+          <span className="font-headline text-4xl italic text-on-surface tracking-tight">HealBite</span>
         </div>
 
         {/* Main card */}
@@ -200,40 +224,43 @@ export default function App() {
 
             <AnimatePresence mode="wait">
 
-              {/* ── Step 0: Language ─────────────────────── */}
+              {/* ── Step 0: Language Grid ─────────────────── */}
               {step === 0 && (
                 <motion.div key="s0" variants={slide} initial="initial" animate="animate" exit="exit"
                   className="flex flex-col gap-6 text-center">
 
                   <div className="py-2">
                     <div className="w-20 h-20 rounded-2xl bg-primary-container border border-primary/20 flex items-center justify-center mx-auto mb-6">
-                      <span className="text-4xl">🍱</span>
+                      <Volume2 className="text-primary w-10 h-10" />
                     </div>
                     <h1 className="font-headline text-4xl italic text-on-surface leading-tight">
-                      Your nutrition,<br />refined.
+                      Welcome.
                     </h1>
                     <p className="font-label text-[10px] uppercase tracking-[0.2em] text-tertiary mt-4">
-                      Choose your language to begin
+                      Select your language
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => { setForm(p => ({ ...p, language: 'Hindi' })); speakText('हिंदी चुनी गई', 'hi-IN'); setStep(1); }}
-                      className="w-full py-4 bg-surface-container border border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-high rounded-xl font-label text-on-surface text-lg transition-all active:scale-[0.98]"
-                    >
-                      🇮🇳 हिंदी (Hindi)
-                    </button>
-                    <button
-                      onClick={() => { setForm(p => ({ ...p, language: 'English' })); speakText('English selected', 'en-IN'); setStep(1); }}
-                      className="w-full py-4 bg-primary-container border border-primary/20 hover:border-primary/50 rounded-xl font-label text-on-surface text-lg transition-all active:scale-[0.98]"
-                    >
-                      🇬🇧 English
-                    </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    {SUPPORTED_LANGUAGES.map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          setForm(p => ({ ...p, language: lang.code }));
+                          speakText('Welcome to HealBite', lang.code);
+                          setStep(1);
+                        }}
+                        className="py-4 bg-surface-container border border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-high rounded-xl flex flex-col items-center gap-1.5 transition-all active:scale-[0.98]"
+                      >
+                        <span className="text-2xl">{lang.icon}</span>
+                        <span className="font-label font-bold text-on-surface text-lg">{lang.label}</span>
+                        <span className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">{lang.englishLabel}</span>
+                      </button>
+                    ))}
                   </div>
 
-                  <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/40">
-                    Your personal Indian nutrition companion
+                    <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/40">
+                    Your personal nutrition companion
                   </p>
                 </motion.div>
               )}
@@ -265,17 +292,17 @@ export default function App() {
                       onClick={() => handleListen('name')}
                       whileTap={{ scale: 0.88 }}
                       className={`w-16 h-16 rounded-full flex items-center justify-center transition-all border-2 ${
-                        isListening
+                        listeningField === 'name'
                           ? 'mic-active'
                           : 'bg-surface-container border-outline-variant/30 hover:border-primary/40 text-on-surface-variant hover:text-primary'
                       }`}
                     >
-                      {isListening ? <MicOff size={22} /> : <Mic size={22} />}
+                      {listeningField === 'name' ? <MicOff size={22} /> : <Mic size={22} />}
                     </motion.button>
                     <span className={`text-[10px] font-label uppercase tracking-widest transition-colors ${
-                      isListening ? 'text-tertiary' : 'text-on-surface-variant/40'
+                      listeningField === 'name' ? 'text-tertiary' : 'text-on-surface-variant/40'
                     }`}>
-                      {isListening ? '● Listening…' : 'Tap to speak'}
+                      {listeningField === 'name' ? '● Listening…' : 'Tap to speak'}
                     </span>
                   </div>
 
@@ -298,32 +325,89 @@ export default function App() {
                       Your blueprint,<br />{form.name.split(' ')[0] || 'friend'}.
                     </h2>
                     <p className="font-label text-xs text-on-surface-variant mt-2">
-                      We'll personalise your plan to these numbers
+                      Your age, weight, and height let us calculate your exact calorie target
                     </p>
                   </div>
 
                   {[
-                    { label: 'Current Weight', field: 'current_weight', unit: 'kg', icon: Weight,  placeholder: '75' },
-                    { label: 'Target Weight',  field: 'target_weight',  unit: 'kg', icon: Target,  placeholder: '65' },
-                    { label: 'Height',         field: 'height_cm',      unit: 'cm', icon: Ruler,   placeholder: '170' },
-                  ].map(({ label, field, unit, icon: Icon, placeholder }) => (
-                    <div key={field}>
-                      <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant flex items-center gap-1.5 mb-1.5">
-                        <Icon size={11} /> {label}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          className="w-full p-4 pr-14 bg-surface-container border border-outline-variant/30 rounded-xl focus:border-primary/60 focus:bg-surface-container-high outline-none transition-all font-label text-on-surface text-lg placeholder:text-on-surface-variant/25"
-                          value={form[field]}
-                          onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                          placeholder={placeholder}
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-label text-sm">{unit}</span>
+                    { label: 'Age',            field: 'age',            unit: 'yrs', icon: Activity, placeholder: '25',  min: 10,  max: 100 },
+                    { label: 'Current Weight', field: 'current_weight', unit: 'kg',  icon: Weight,   placeholder: '75',  min: 20,  max: 300 },
+                    { label: 'Target Weight',  field: 'target_weight',  unit: 'kg',  icon: Target,   placeholder: '65',  min: 20,  max: 300 },
+                    { label: 'Height',         field: 'height_cm',      unit: 'cm',  icon: Ruler,    placeholder: '170', min: 90,  max: 250 },
+                  ].map(({ label, field, unit, icon: Icon, placeholder, min, max }) => {
+                    const active  = listeningField === field;
+                    const current = parseFloat(form[field]) || 0;
+
+                    const step = (dir) => {
+                      const next = Math.min(max, Math.max(min, current + dir));
+                      setForm(p => ({ ...p, [field]: String(next) }));
+                    };
+
+                    return (
+                      <div key={field}>
+                        <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant flex items-center gap-1.5 mb-2">
+                          <Icon size={11} /> {label}
+                        </label>
+
+                        <div className="flex items-stretch gap-2">
+                          {/* Decrement */}
+                          <button
+                            type="button"
+                            onClick={() => step(-1)}
+                            className="w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error/5 active:scale-95 transition-all py-3">
+                            <Minus size={16} />
+                            <span className="font-label text-[8px] uppercase tracking-widest opacity-50">−1</span>
+                          </button>
+
+                          {/* Central editable display */}
+                          <div className={`flex-1 flex items-center justify-center gap-2 rounded-xl border transition-all px-3 ${
+                            active
+                              ? 'bg-surface-container-high border-tertiary/60'
+                              : 'bg-surface-container border-outline-variant/30 focus-within:border-primary/60 focus-within:bg-surface-container-high'
+                          }`}>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              className="w-full bg-transparent outline-none font-label text-on-surface text-3xl font-bold text-center placeholder:text-on-surface-variant/25 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none py-3"
+                              value={form[field]}
+                              onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
+                              placeholder={active ? '…' : placeholder}
+                            />
+                            <span className="font-label text-base text-on-surface-variant flex-shrink-0 font-semibold">{unit}</span>
+                          </div>
+
+                          {/* Increment */}
+                          <button
+                            type="button"
+                            onClick={() => step(1)}
+                            className="w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 hover:bg-primary/5 active:scale-95 transition-all py-3">
+                            <Plus size={16} />
+                            <span className="font-label text-[8px] uppercase tracking-widest opacity-50">+1</span>
+                          </button>
+
+                          {/* Mic — full-height dedicated button, same tier as +/− */}
+                          <button
+                            type="button"
+                            onClick={() => handleListen(field)}
+                            className={`w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl border transition-all py-3 ${
+                              active
+                                ? 'mic-active border-tertiary/60'
+                                : 'bg-surface-container border-outline-variant/30 text-on-surface-variant hover:text-tertiary hover:border-tertiary/50 hover:bg-tertiary/5'
+                            }`}>
+                            {active ? <MicOff size={18} /> : <Mic size={18} />}
+                            <span className="font-label text-[8px] uppercase tracking-widest opacity-50">
+                              {active ? 'stop' : 'voice'}
+                            </span>
+                          </button>
+                        </div>
+
+                        {/* Range hint */}
+                        <p className="font-label text-[9px] text-on-surface-variant/40 uppercase tracking-widest mt-1.5 text-center">
+                          {min}–{max} {unit}
+                        </p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <button
                     onClick={() => validateAndNext(3)}
