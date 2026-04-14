@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # ─────────────────────────────────────────────
-#  AaharVoice — One-shot startup script
+#  HealBite — One-shot startup script
 # ─────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
 echo "╔══════════════════════════════════╗"
-echo "║       AaharVoice Launcher        ║"
+echo "║        HealBite Launcher         ║"
 echo "╚══════════════════════════════════╝"
 echo ""
 

@@ -88,6 +88,7 @@ export default function Dashboard({ user: initialUser }) {
   const [pantryInput, setPantryInput]     = useState('');
   const [pantryResult, setPantryResult]   = useState(null);
   const [loadingPantry, setLoadingPantry] = useState(false);
+  const [loggingPantry, setLoggingPantry] = useState(false);
   const [isListeningPantry, setIsListeningPantry] = useState(false);
   const pantryRecRef = useRef(null);
 
@@ -180,7 +181,11 @@ export default function Dashboard({ user: initialUser }) {
       });
       setTrackerStats(res.data);
       toast.success(`Logged: ${meal.name}`, TOAST_STYLE);
-    } catch { toast.error('Failed to log meal.', TOAST_STYLE); }
+      return true;
+    } catch {
+      toast.error('Failed to log meal.', TOAST_STYLE);
+      return false;
+    }
   };
 
   const undoLog = async (mealName) => {
@@ -681,16 +686,22 @@ export default function Dashboard({ user: initialUser }) {
                       </p>
                     )}
                     <button
+                      disabled={loggingPantry}
                       onClick={async () => {
-                        await logMeal({
+                        setLoggingPantry(true);
+                        const ok = await logMeal({
                           name: pantryResult.name,
                           calories: pantryResult.calories,
                           protein: pantryResult.protein,
                         });
-                        setActiveTab('tracker');
+                        setLoggingPantry(false);
+                        if (ok) setActiveTab('tracker');
                       }}
-                      className="mt-5 w-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 py-3.5 rounded-xl font-label font-bold text-sm uppercase tracking-widest flex justify-center items-center gap-2.5 transition-all">
-                      <CheckCircle size={16} /> Log to Journal
+                      className="mt-5 w-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 py-3.5 rounded-xl font-label font-bold text-sm uppercase tracking-widest flex justify-center items-center gap-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      {loggingPantry
+                        ? <><Loader2 size={16} className="animate-spin" /> Logging…</>
+                        : <><CheckCircle size={16} /> Log to Journal</>
+                      }
                     </button>
                   </motion.div>
                 )}
