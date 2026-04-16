@@ -125,10 +125,19 @@ const DANGER_CONFIG = [
   },
 ];
 
+const FEEDBACK_MAX = 2000;
+
 function FeedbackModal({ user, onClose }) {
   const [feedbackType, setFeedbackType] = useState('General Comment');
   const [message, setMessage]           = useState('');
   const [submitting, setSubmitting]     = useState(false);
+
+  // Close on Escape key
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -203,10 +212,16 @@ function FeedbackModal({ user, onClose }) {
 
             {/* Message */}
             <div>
-              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Your Message</p>
+              <div className="flex justify-between items-baseline mb-2">
+                <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Your Message</p>
+                <span className={`font-label text-[10px] tabular-nums ${message.length >= FEEDBACK_MAX ? 'text-error' : 'text-on-surface-variant/60'}`}>
+                  {message.length}/{FEEDBACK_MAX}
+                </span>
+              </div>
               <textarea
                 value={message}
-                onChange={e => setMessage(e.target.value)}
+                onChange={e => setMessage(e.target.value.slice(0, FEEDBACK_MAX))}
+                maxLength={FEEDBACK_MAX}
                 rows={5}
                 placeholder="Tell us what you think…"
                 className="w-full bg-surface-container p-4 rounded-xl text-on-surface text-sm font-label leading-relaxed resize-none outline-none border border-outline-variant/30 focus:border-primary/50 transition-colors placeholder:text-on-surface-variant/40"

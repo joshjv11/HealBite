@@ -732,21 +732,33 @@ async def get_alternative(req: AlternativeRequest):
 # ══════════════════════════════════════════════════════════════
 #  CUSTOMER FEEDBACK
 # ══════════════════════════════════════════════════════════════
+# Absolute path resolved once at import time so it works regardless
+# of the working directory the server is launched from.
+_FEEDBACK_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback.log")
+
+
+def _append_feedback(entry: str) -> None:
+    """Blocking write — called via asyncio.to_thread to keep the event loop free."""
+    with open(_FEEDBACK_LOG, "a", encoding="utf-8") as fh:
+        fh.write(entry)
+
+
 @app.post("/api/feedback/")
 async def submit_feedback(req: FeedbackRequest):
+    # Strip control characters from name to prevent log-injection attacks.
+    safe_name = req.name.replace('\r', '').replace('\n', ' ').strip()
+
     timestamp = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     log_entry = (
         f"[{timestamp} IST] ----------------------------------------\n"
         f"User ID : {req.user_id or 'Anonymous'}\n"
-        f"Name    : {req.name}\n"
+        f"Name    : {safe_name}\n"
         f"Type    : {req.feedback_type}\n"
-        f"Message : {req.message}\n"
+        f"Message : {req.message.strip()}\n"
         f"----------------------------------------------------------\n\n"
     )
     try:
-        feedback_path = os.path.join(os.path.dirname(__file__), "feedback.log")
-        with open(feedback_path, "a", encoding="utf-8") as f:
-            f.write(log_entry)
+        await asyncio.to_thread(_append_feedback, log_entry)
         log.info("Feedback logged — type=%s user=%s", req.feedback_type, req.user_id or "anon")
         return {"message": "Thank you for your feedback! We appreciate you helping us improve PoshanPal."}
     except Exception as e:

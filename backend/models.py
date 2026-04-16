@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Literal, Optional
 
 
 class UserCreate(BaseModel):
@@ -41,6 +41,6 @@ class LogMealRequest(BaseModel):
 
 class FeedbackRequest(BaseModel):
     user_id: Optional[str] = None
-    name: str
-    feedback_type: str
-    message: str
+    name: str = Field(min_length=1, max_length=120)
+    feedback_type: Literal['Bug Report', 'Feature Request', 'General Comment']
+    message: str = Field(min_length=1, max_length=2000)
