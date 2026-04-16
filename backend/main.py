@@ -17,7 +17,7 @@ from google import genai
 from google.genai import types
 
 from database import user_collection, log_collection, database
-from models import UserCreate, AlternativeRequest, PromptRequest, PantryRequest, LogMealRequest
+from models import UserCreate, AlternativeRequest, PromptRequest, PantryRequest, LogMealRequest, FeedbackRequest
 
 # Medical Vault: uploads directory
 os.makedirs("uploads", exist_ok=True)
@@ -727,3 +727,28 @@ async def get_alternative(req: AlternativeRequest):
     except Exception as e:
         log.error("Alternative error: %s", e)
         raise HTTPException(status_code=500, detail="Could not generate alternative.")
+
+
+# ══════════════════════════════════════════════════════════════
+#  CUSTOMER FEEDBACK
+# ══════════════════════════════════════════════════════════════
+@app.post("/api/feedback/")
+async def submit_feedback(req: FeedbackRequest):
+    timestamp = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = (
+        f"[{timestamp} IST] ----------------------------------------\n"
+        f"User ID : {req.user_id or 'Anonymous'}\n"
+        f"Name    : {req.name}\n"
+        f"Type    : {req.feedback_type}\n"
+        f"Message : {req.message}\n"
+        f"----------------------------------------------------------\n\n"
+    )
+    try:
+        feedback_path = os.path.join(os.path.dirname(__file__), "feedback.log")
+        with open(feedback_path, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+        log.info("Feedback logged — type=%s user=%s", req.feedback_type, req.user_id or "anon")
+        return {"message": "Thank you for your feedback! We appreciate you helping us improve PoshanPal."}
+    except Exception as e:
+        log.error("Failed to write feedback log: %s", e)
+        raise HTTPException(status_code=500, detail="Could not save your feedback at this time.")

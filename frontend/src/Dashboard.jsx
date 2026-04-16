@@ -5,6 +5,7 @@ import {
   Activity, CheckCircle, Trash2, Mic, MicOff, FileText,
   ChefHat, Flame, Beef, ShieldCheck, HeartPulse, ChevronRight,
   Upload, TrendingUp, TrendingDown, Minus, Bot, Clipboard,
+  MessageSquare, X,
 } from 'lucide-react';
 import { speakText } from './utils';
 import toast, { Toaster } from 'react-hot-toast';
@@ -124,6 +125,108 @@ const DANGER_CONFIG = [
   },
 ];
 
+function FeedbackModal({ user, onClose }) {
+  const [feedbackType, setFeedbackType] = useState('General Comment');
+  const [message, setMessage]           = useState('');
+  const [submitting, setSubmitting]     = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) { toast.error('Please enter a message before submitting.'); return; }
+    setSubmitting(true);
+    try {
+      const res = await axios.post(`${API}/api/feedback/`, {
+        user_id: user._id || user.id || null,
+        name: user.name || 'Anonymous',
+        feedback_type: feedbackType,
+        message: message.trim(),
+      });
+      toast.success(res.data.message);
+      setMessage('');
+      onClose();
+    } catch {
+      toast.error('Could not submit feedback. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.92, y: 24 }}
+        animate={{ scale: 1,    y: 0  }}
+        exit={{ scale: 0.92,    y: 24 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        className="w-full max-w-lg bg-surface-container-high rounded-3xl border border-outline-variant/30 shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-8">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="font-headline text-2xl italic text-on-surface">Share Your Feedback</h2>
+              <p className="font-label text-sm text-on-surface-variant mt-1">Help us make PoshanPal better for you.</p>
+            </div>
+            <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface transition-colors mt-1">
+              <X size={22} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Type selector */}
+            <div>
+              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Feedback Type</p>
+              <div className="grid grid-cols-3 gap-2">
+                {['Bug Report', 'Feature Request', 'General Comment'].map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setFeedbackType(type)}
+                    className={`py-2.5 px-2 rounded-xl text-[11px] font-bold font-label tracking-wide transition-all border ${
+                      feedbackType === type
+                        ? 'bg-primary/20 text-primary border-primary/40'
+                        : 'bg-surface-container border-outline-variant/20 text-on-surface-variant hover:border-outline-variant/50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Message */}
+            <div>
+              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Your Message</p>
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                rows={5}
+                placeholder="Tell us what you think…"
+                className="w-full bg-surface-container p-4 rounded-xl text-on-surface text-sm font-label leading-relaxed resize-none outline-none border border-outline-variant/30 focus:border-primary/50 transition-colors placeholder:text-on-surface-variant/40"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-primary text-on-primary font-label uppercase tracking-widest text-xs font-bold py-4 rounded-xl flex justify-center items-center gap-2 disabled:opacity-50 hover:brightness-110 transition-all"
+            >
+              {submitting ? <><Loader2 size={15} className="animate-spin" /> Submitting…</> : 'Submit Feedback'}
+            </button>
+          </form>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function MealSkeleton() {
   return (
     <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/20">
@@ -137,7 +240,8 @@ function MealSkeleton() {
 
 export default function Dashboard({ user: initialUser }) {
   const [user, setUser]           = useState(initialUser);
-  const [activeTab, setActiveTab] = useState('medical');
+  const [activeTab, setActiveTab]       = useState('medical');
+  const [isFeedbackOpen, setFeedbackOpen] = useState(false);
 
   // Stateful weekly plan
   const [weeklyPlan, setWeeklyPlan]     = useState(null);
@@ -477,6 +581,11 @@ export default function Dashboard({ user: initialUser }) {
   return (
     <div className="bg-background text-on-surface font-body min-h-screen">
       <Toaster position="top-center" toastOptions={TOAST_STYLE} />
+
+      {/* ── Feedback modal ── */}
+      <AnimatePresence>
+        {isFeedbackOpen && <FeedbackModal user={user} onClose={() => setFeedbackOpen(false)} />}
+      </AnimatePresence>
 
       {/* ══════════ TOP NAV ══════════ */}
       <nav className="fixed top-0 w-full z-50 bg-surface-container-lowest/70 backdrop-blur-xl border-b border-outline-variant/10 flex justify-between items-center px-6 py-4">
@@ -1232,13 +1341,21 @@ export default function Dashboard({ user: initialUser }) {
         ))}
       </footer>
 
-      {/* ══════════ FAB (desktop) ══════════ */}
+      {/* ══════════ FAB — Regenerate plan (desktop) ══════════ */}
       <button
         onClick={() => { if (window.confirm('Generate a completely new 7-day plan? Your current plan will be replaced.')) fetchPlan(true); }}
         disabled={loadingMeals}
         title="Generate new 7-day plan"
-        className="fixed bottom-10 right-10 hidden md:flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-tertiary to-tertiary-container rounded-full text-on-tertiary shadow-2xl shadow-black/40 hover:scale-110 transition-transform z-50 disabled:opacity-50">
-        <RefreshCw size={24} className={loadingMeals ? 'animate-spin' : ''} />
+        className="fixed bottom-10 right-10 hidden md:flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-tertiary to-tertiary-container rounded-full text-on-tertiary shadow-2xl shadow-black/40 hover:scale-110 transition-transform z-50 disabled:opacity-50">
+        <RefreshCw size={22} className={loadingMeals ? 'animate-spin' : ''} />
+      </button>
+
+      {/* ══════════ FAB — Feedback (desktop) ══════════ */}
+      <button
+        onClick={() => setFeedbackOpen(true)}
+        title="Share feedback"
+        className="fixed bottom-28 right-10 hidden md:flex items-center justify-center w-14 h-14 bg-surface-container-high border border-outline-variant/40 rounded-full text-on-surface-variant shadow-xl shadow-black/30 hover:scale-110 hover:text-primary hover:border-primary/40 transition-all z-50">
+        <MessageSquare size={22} />
       </button>
     </div>
   );

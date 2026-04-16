@@ -37,3 +37,10 @@ class LogMealRequest(BaseModel):
     meal_name: str
     calories: int
     protein: int
+
+
+class FeedbackRequest(BaseModel):
+    user_id: Optional[str] = None
+    name: str
+    feedback_type: str
+    message: str
