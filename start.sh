@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # ─────────────────────────────────────────────
-#  HealBite — One-shot startup script
+#  PoshanPal — One-shot startup script
 # ─────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
 echo "╔══════════════════════════════════╗"
-echo "║        HealBite Launcher         ║"
+echo "║       PoshanPal Launcher         ║"
 echo "╚══════════════════════════════════╝"
 echo ""
 

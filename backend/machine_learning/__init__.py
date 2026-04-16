@@ -1,6 +1,6 @@
 # machine_learning/__init__.py
 # ─────────────────────────────────────────────────────────────────────────────
-# HealBite — Machine Learning Subsystem
+# PoshanPal — Machine Learning Subsystem
 #
 # Modules
 # -------

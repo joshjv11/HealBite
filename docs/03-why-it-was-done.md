@@ -1,14 +1,14 @@
 # Why It Was Done
 
-## Why the Rebrand to HealBite
+## Why the Rebrand to PoshanPal
 
-### The problem with "AaharVoice"
+### The problem with "PoshanPal"
 "Aahar" (आहार) is a Hindi/Sanskrit word for food. While culturally meaningful, it creates two friction points:
 
 1. **Non-Indian users can't pronounce or remember it** — the name is opaque to anyone outside South Asian linguistic contexts, making word-of-mouth and organic discovery harder
 2. **"Voice" locked the product into one input modality** — the app now supports typed input, stepper controls, voice input, and file uploads; a name that foregrounds only voice undersells everything else the product does
 
-### Why "HealBite"
+### Why "PoshanPal"
 - **"Heal"** — positions the product in the health/wellness space immediately; every feature (clinical scan, BMI tracking, medical vault, calorie journal) maps to this word
 - **"Bite"** — keeps the food angle clear without being tied to any one language or region
 - Together the name is short, memorable, pronounceable globally, and domain-squatter-friendly

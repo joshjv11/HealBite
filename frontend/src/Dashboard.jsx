@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import {
-  Volume2, PlayCircle, Search, Loader2, RefreshCw,
+  Volume2, PlayCircle, Loader2, RefreshCw,
   Activity, CheckCircle, Trash2, Mic, MicOff, FileText,
   ChefHat, Flame, Beef, ShieldCheck, HeartPulse, ChevronRight,
   Upload, TrendingUp, TrendingDown, Minus, Bot, Clipboard,
@@ -53,6 +53,77 @@ const TABS = [
   { id: 'pantry',  label: 'Pantry',         icon: '🧊' },
 ];
 
+// ── Biomarker danger classification ───────────────────────────
+// Returns 0 (normal) → 4 (critical) based on marker status + trend direction.
+const getDangerLevel = (marker) => {
+  const s = (marker.status || '').toLowerCase().trim();
+  const t = (marker.trend  || '').toLowerCase().trim();
+  if (!s || s === 'normal') return 0;
+  if (s === 'critical' || s.includes('very high') || s.includes('very low') ||
+      s.includes('severe') || s.includes('danger')) return 4;
+  // Worsening direction makes a high/low marker one tier more dangerous
+  const worseningHigh = (s === 'high' || s.includes('elevated') || s === 'abnormal') && t === 'up';
+  const worseningLow  = s === 'low' && t === 'down';
+  if (worseningHigh || worseningLow) return 3;
+  if (s === 'high' || s === 'low' || s === 'abnormal' || s.includes('elevated')) return 2;
+  if (s.includes('borderline') || s.includes('slightly') || s.includes('mild')) return 1;
+  return 2; // any other non-normal defaults to moderate
+};
+
+// Per-level visual config — every class is a complete literal string so Tailwind JIT picks them up.
+const DANGER_CONFIG = [
+  { // 0 — Normal
+    span:  false,
+    card:  'bg-surface-container border-outline-variant/10 hover:border-primary/20',
+    strip: 'bg-primary/50',
+    badge: 'bg-primary/15 text-primary',
+    val:   'text-on-surface',
+    desc:  'text-on-surface-variant',
+    label: 'Normal',
+    pulse: false,
+  },
+  { // 1 — Borderline  (gold / tertiary)
+    span:  true,
+    card:  'bg-[#1e1500]/80 border-tertiary/50 hover:bg-[#1e1500]',
+    strip: 'bg-tertiary',
+    badge: 'bg-tertiary/20 text-tertiary border border-tertiary/40',
+    val:   'text-tertiary',
+    desc:  'text-tertiary/75',
+    label: 'Borderline',
+    pulse: false,
+  },
+  { // 2 — Abnormal  (orange)
+    span:  true,
+    card:  'bg-[#1a0800]/80 border-[#f97316]/45 hover:bg-[#1a0800]',
+    strip: 'bg-[#f97316]',
+    badge: 'bg-[#f97316]/20 text-[#f97316] border border-[#f97316]/40',
+    val:   'text-[#f97316]',
+    desc:  'text-[#f97316]/75',
+    label: 'Abnormal',
+    pulse: false,
+  },
+  { // 3 — High Risk  (bright error pink-red, worsening trend)
+    span:  true,
+    card:  'bg-error-container/25 border-error/55 hover:bg-error-container/35',
+    strip: 'bg-error',
+    badge: 'bg-error/20 text-error border border-error/50',
+    val:   'text-error',
+    desc:  'text-error/80',
+    label: 'High Risk',
+    pulse: false,
+  },
+  { // 4 — Critical  (deep crimson + pulsing dot)
+    span:  true,
+    card:  'bg-error-container/50 border-error/80 shadow-lg shadow-error-container/50 hover:bg-error-container/60',
+    strip: 'bg-error',
+    badge: 'bg-error text-on-error border border-error',
+    val:   'text-error',
+    desc:  'text-error/90',
+    label: 'CRITICAL',
+    pulse: true,
+  },
+];
+
 function MealSkeleton() {
   return (
     <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/20">
@@ -75,12 +146,6 @@ export default function Dashboard({ user: initialUser }) {
     new Date().toLocaleString('en-us', { weekday: 'long' })
   );
 
-  // Craving / suggest (Pantry-adjacent quick search)
-  const [craving, setCraving]         = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestSrc, setSuggestSrc]   = useState('');
-  const [searching, setSearching]     = useState(false);
-
   // Tracker
   const [trackerStats, setTrackerStats] = useState({ total_cal: 0, total_pro: 0, eaten_meals: [] });
 
@@ -93,12 +158,13 @@ export default function Dashboard({ user: initialUser }) {
   const pantryRecRef = useRef(null);
 
   // Medical Vault
-  const [reportFile, setReportFile]         = useState(null);
-  const [previewUrl, setPreviewUrl]         = useState(null);
-  const [loadingReport, setLoadingReport]   = useState(false);
-  const [medicalHistory, setMedicalHistory] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [selectedMetric, setSelectedMetric] = useState('Health Score');
+  const [reportFile, setReportFile]           = useState(null);
+  const [previewUrl, setPreviewUrl]           = useState(null);
+  const [loadingReport, setLoadingReport]     = useState(false);
+  const [medicalHistory, setMedicalHistory]   = useState([]);
+  const [loadingHistory, setLoadingHistory]   = useState(true);
+  const [refreshingHistory, setRefreshingHistory] = useState(false);
+  const [selectedMetric, setSelectedMetric]   = useState('Health Score');
   const fileInputRef = useRef(null);
 
   // Doctor's Briefing
@@ -121,16 +187,35 @@ export default function Dashboard({ user: initialUser }) {
 
   // ── Auto-greeting (Audio-first for low-literacy users) ──
   useEffect(() => {
+    const firstName = user.name.split(' ')[0];
     const GREETINGS = {
-      'hi-IN': `नमस्ते ${user.name.split(' ')[0]}, आपका स्वागत है।`,
-      'mr-IN': `नमस्कार ${user.name.split(' ')[0]}, तुमचे स्वागत आहे।`,
-      'ta-IN': `வணக்கம் ${user.name.split(' ')[0]}`,
-      'bn-IN': `নমস্কার ${user.name.split(' ')[0]}`,
-      'gu-IN': `નમસ્તે ${user.name.split(' ')[0]}`,
-      'en-IN': `Welcome back, ${user.name.split(' ')[0]}`,
+      'hi-IN': {
+        text:     `नमस्ते ${firstName}! PoshanPal में आपका स्वागत है। आपका भोजन योजना तैयार है।`,
+        fallback: `Namaste ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
+      },
+      'mr-IN': {
+        text:     `नमस्कार ${firstName}! PoshanPal मध्ये आपले स्वागत आहे। आपली जेवणाची योजना तयार आहे।`,
+        fallback: `Namaskar ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
+      },
+      'ta-IN': {
+        text:     `வணக்கம் ${firstName}! PoshanPal-இல் உங்களை வரவேற்கிறோம். உங்கள் உணவுத் திட்டம் தயாராக உள்ளது.`,
+        fallback: `Vanakkam ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
+      },
+      'bn-IN': {
+        text:     `নমস্কার ${firstName}! PoshanPal-এ আপনাকে স্বাগতম। আপনার খাবারের পরিকল্পনা তৈরি।`,
+        fallback: `Namaskar ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
+      },
+      'gu-IN': {
+        text:     `નમસ્તે ${firstName}! PoshanPal માં આપનું સ્વાગત છે। આપની ભોજન યોજના તૈયાર છે.`,
+        fallback: `Kem chho ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
+      },
+      'en-IN': {
+        text:     `Welcome back, ${firstName}! Your personalised meal plan is ready on PoshanPal.`,
+        fallback: null,
+      },
     };
-    const text = GREETINGS[lang] || GREETINGS['en-IN'];
-    const timer = setTimeout(() => speakText(text, lang), 1500);
+    const g = GREETINGS[lang] || GREETINGS['en-IN'];
+    const timer = setTimeout(() => speakText(g.text, lang, g.fallback), 1500);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -143,7 +228,17 @@ export default function Dashboard({ user: initialUser }) {
         params: { force_refresh: forceRefresh },
       });
       setWeeklyPlan(res.data.plan?.plan_data || null);
-      if (res.data.user) setUser(res.data.user);
+      // Merge — never let the plan response wipe out clinical_profile that was
+      // already set by a fresh scan-report response earlier in the same flow.
+      if (res.data.user) {
+        setUser(prev => ({
+          ...res.data.user,
+          clinical_profile: res.data.user.clinical_profile ?? prev.clinical_profile,
+          master_clinical_directive:
+            res.data.user.master_clinical_directive ?? prev.master_clinical_directive,
+          clinical_data: res.data.user.clinical_data ?? prev.clinical_data,
+        }));
+      }
       if (forceRefresh) toast.success('New 7-day plan generated!', { duration: 4000, ...TOAST_STYLE });
     } catch {
       toast.error('Failed to load meal plan.', TOAST_STYLE);
@@ -158,8 +253,13 @@ export default function Dashboard({ user: initialUser }) {
       .catch(console.error);
   }, [user.id]);
 
-  const fetchMedicalHistory = useCallback(async () => {
-    setLoadingHistory(true);
+  const fetchMedicalHistory = useCallback(async (isRefresh = false) => {
+    // On refresh (after upload), show a subtle spinner instead of blanking the vault
+    if (isRefresh) {
+      setRefreshingHistory(true);
+    } else {
+      setLoadingHistory(true);
+    }
     try {
       const res = await axios.get(`${API}/api/medical-history/${user.id}`);
       setMedicalHistory(res.data.reports || []);
@@ -167,6 +267,7 @@ export default function Dashboard({ user: initialUser }) {
       toast.error('Could not fetch medical vault.', TOAST_STYLE);
     } finally {
       setLoadingHistory(false);
+      setRefreshingHistory(false);
     }
   }, [user.id]);
 
@@ -196,20 +297,6 @@ export default function Dashboard({ user: initialUser }) {
     } catch { toast.error('Failed to remove log.', TOAST_STYLE); }
   };
 
-  const findSuggestions = async () => {
-    if (!craving.trim()) return;
-    setSearching(true);
-    setSuggestions([]);
-    setSuggestSrc('');
-    try {
-      const res = await axios.post(`${API}/api/suggest/`, { prompt: craving, allergies: user.allergies || [], language: lang });
-      setSuggestions(res.data.suggestions || []);
-      setSuggestSrc(res.data.source || '');
-    } catch { toast.error("Couldn't get suggestions.", TOAST_STYLE); }
-    finally { setSearching(false); }
-  };
-
-
   const cookFromPantry = async () => {
     if (!pantryInput.trim()) return toast.error('Enter some ingredients.', TOAST_STYLE);
     setLoadingPantry(true);
@@ -222,7 +309,7 @@ export default function Dashboard({ user: initialUser }) {
       if (res.data.source === 'fallback') {
         toast('AI offline — showing our best offline recipe match.', { icon: '📖', ...TOAST_STYLE });
       }
-      speakText(`Recipe ready: ${res.data.name}`, lang);
+      speakText(`Recipe ready: ${res.data.name}`, lang, `Recipe ready: ${res.data.name}`);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Pantry chef failed.', TOAST_STYLE);
     }
@@ -234,16 +321,33 @@ export default function Dashboard({ user: initialUser }) {
     if (!SR) return toast.error('Voice not supported. Use Chrome.', TOAST_STYLE);
     if (isListeningPantry && pantryRecRef.current) {
       pantryRecRef.current.abort();
+      pantryRecRef.current = null;
       setIsListeningPantry(false);
       return;
     }
     const rec = new SR();
     pantryRecRef.current = rec;
-    rec.lang    = lang;
+    rec.lang             = lang;
+    rec.interimResults   = false;
+    rec.continuous       = false;
     rec.onstart  = () => setIsListeningPantry(true);
     rec.onresult = e => setPantryInput(e.results[0][0].transcript);
-    rec.onerror  = () => setIsListeningPantry(false);
-    rec.onend    = () => setIsListeningPantry(false);
+    rec.onerror  = (e) => {
+      setIsListeningPantry(false);
+      pantryRecRef.current = null;
+      if (e.error === 'not-allowed') {
+        toast.error('Microphone access denied. Allow mic in browser settings.', TOAST_STYLE);
+      } else if (e.error === 'no-speech') {
+        toast('No speech detected. Tap mic and try again.', { icon: '🎙️', ...TOAST_STYLE });
+      } else if (e.error === 'audio-capture') {
+        toast.error('No microphone found. Please connect one.', TOAST_STYLE);
+      } else if (e.error === 'network') {
+        toast.error('Voice needs internet. Check your connection.', TOAST_STYLE);
+      } else {
+        toast.error(`Voice error: ${e.error}. Please type instead.`, TOAST_STYLE);
+      }
+    };
+    rec.onend    = () => { setIsListeningPantry(false); pantryRecRef.current = null; };
     rec.start();
   };
 
@@ -270,14 +374,24 @@ export default function Dashboard({ user: initialUser }) {
     fd.append('user_id', user.id);
     try {
       const res = await axios.post(`${API}/api/scan-report/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success('Clinical profile updated! Regenerating your meal plan…', { duration: 5000, ...TOAST_STYLE });
+
+      // Update UI immediately with the fresh user data from the scan response
       if (res.data.user) setUser(res.data.user);
       setReportFile(null);
       setPreviewUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      // Sequential — guarantee history is in state before the plan generation reads the new directive
-      await fetchMedicalHistory();
-      await fetchPlan(true);
+
+      // Release the upload zone right away — don't keep it locked during the long plan generation
+      setLoadingReport(false);
+
+      toast.success('Clinical profile updated! Regenerating your meal plan…', { duration: 5000, ...TOAST_STYLE });
+
+      // Refresh history with a subtle indicator (keeps existing docs visible)
+      await fetchMedicalHistory(true);
+
+      // Fire plan regeneration without awaiting — it runs in the background
+      // so the medical tab stays fully interactive while Gemini works
+      fetchPlan(true);
     } catch (err) {
       const detail = err.response?.data?.detail || 'Failed to scan report.';
       const isQuota = err.response?.status === 503 || detail.includes('quota');
@@ -286,7 +400,6 @@ export default function Dashboard({ user: initialUser }) {
       } else {
         toast.error(detail, TOAST_STYLE);
       }
-    } finally {
       setLoadingReport(false);
     }
   };
@@ -347,11 +460,14 @@ export default function Dashboard({ user: initialUser }) {
           value = isNaN(parsed) ? null : parsed;
         }
       }
-      return { date: report.upload_date.split(',')[0], value };
+      // Use "Apr 15, 14:30" as the label — unique per upload even on same day
+      const [datePart, , timePart] = report.upload_date.split(/,\s*(\d{4}),?\s*/);
+      const label = timePart ? `${datePart}, ${timePart}` : report.upload_date;
+      return { date: label, value };
     });
   }, [medicalHistory, selectedMetric]);
 
-  const calPct       = Math.min((trackerStats.total_cal / user.target_cal) * 100, 100);
+  const calPct       = Math.min((trackerStats.total_cal / (user.target_cal || 1)) * 100, 100);
   const latestReport = medicalHistory[0];
   const hasDirective = user.clinical_profile?.master_directive
     || user.master_clinical_directive
@@ -365,7 +481,7 @@ export default function Dashboard({ user: initialUser }) {
       {/* ══════════ TOP NAV ══════════ */}
       <nav className="fixed top-0 w-full z-50 bg-surface-container-lowest/70 backdrop-blur-xl border-b border-outline-variant/10 flex justify-between items-center px-6 py-4">
         <div className="flex items-center gap-8">
-          <span className="font-headline text-2xl italic text-on-surface tracking-tight">HealBite</span>
+          <span className="font-headline text-2xl italic text-on-surface tracking-tight">PoshanPal</span>
           <div className="hidden md:flex gap-6">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
@@ -393,7 +509,14 @@ export default function Dashboard({ user: initialUser }) {
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="font-headline text-4xl md:text-6xl italic text-on-surface tracking-tight mb-2"
         >
-          Namaste, {user.name.split(' ')[0]}.
+          {({
+            'hi-IN': 'नमस्ते',
+            'mr-IN': 'नमस्कार',
+            'ta-IN': 'வணக்கம்',
+            'bn-IN': 'নমস্কার',
+            'gu-IN': 'નમસ્તે',
+            'en-IN': 'Hello',
+          }[lang] ?? 'Hello')}, {user.name.split(' ')[0]}.
         </motion.h1>
         <p className="font-label text-xs uppercase tracking-[0.2em] text-tertiary opacity-80">{today}</p>
 
@@ -752,7 +875,43 @@ export default function Dashboard({ user: initialUser }) {
               <div className="bg-surface-container-low p-6 rounded-3xl border border-primary/20 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-primary rounded-l-3xl" />
                 <div className="pl-2">
-                  <h2 className="font-headline text-3xl italic text-on-surface mb-2">Patient Profile</h2>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className="font-headline text-3xl italic text-on-surface">Patient Profile</h2>
+                    {(() => {
+                      const markers = user.clinical_profile?.latest_markers || [];
+                      if (!markers.length) return null;
+                      const maxLevel = Math.max(...markers.map(getDangerLevel));
+                      if (maxLevel === 0) return (
+                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
+                          All Clear
+                        </span>
+                      );
+                      if (maxLevel === 1) return (
+                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-tertiary/20 text-tertiary border border-tertiary/40">
+                          Watch
+                        </span>
+                      );
+                      if (maxLevel === 2) return (
+                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#1a0800]/80 text-[#f97316] border border-[#f97316]/50">
+                          Moderate Risk
+                        </span>
+                      );
+                      if (maxLevel === 3) return (
+                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/25 text-error border border-error/50">
+                          High Risk
+                        </span>
+                      );
+                      return (
+                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/50 text-error border border-error/80 flex items-center gap-1.5">
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error" />
+                          </span>
+                          Critical Alert
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <div className="flex flex-wrap gap-4 font-label text-sm text-on-surface-variant">
                     <span>Target: <strong className="text-primary">{user.target_cal} kcal</strong></span>
                     <span>Protein: <strong className="text-primary">{user.target_protein}g</strong></span>
@@ -813,50 +972,120 @@ export default function Dashboard({ user: initialUser }) {
                   {/* Vital Biomarkers Bento Grid */}
                   {user.clinical_profile?.latest_markers?.length > 0 ? (
                     <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/10 shadow-lg">
-                      <div className="flex justify-between items-center mb-5">
+
+                      {/* ── Header ── */}
+                      <div className="flex justify-between items-center mb-4">
                         <h3 className="font-headline text-2xl italic text-on-surface">Vital Biomarkers</h3>
-                        <span className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">Aggregated Profile</span>
+                        <div className="flex items-center gap-2">
+                          {refreshingHistory && <Loader2 size={11} className="animate-spin text-primary" />}
+                          <span className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">Aggregated Profile</span>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        {user.clinical_profile.latest_markers.map((marker, i) => {
-                          const status = marker.status?.toLowerCase() || '';
-                          const isAbnormal = status === 'abnormal' || status === 'high' || status === 'low';
-                          const TrendIcon = marker.trend === 'up' ? TrendingUp : marker.trend === 'down' ? TrendingDown : Minus;
-                          const trendColor = isAbnormal
-                            ? (marker.trend === 'down' && status === 'high') || (marker.trend === 'up' && status === 'low')
-                              ? 'text-primary' : 'text-error'
-                            : 'text-on-surface-variant';
+                      {/* ── Danger summary pills ── */}
+                      {(() => {
+                        const counts = { 4: 0, 3: 0, 2: 0, 1: 0 };
+                        user.clinical_profile.latest_markers.forEach(m => {
+                          const l = getDangerLevel(m);
+                          if (l > 0) counts[l] = (counts[l] || 0) + 1;
+                        });
+                        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                        if (!total) return null;
+                        return (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {counts[4] > 0 && (
+                              <div className="flex items-center gap-1.5 bg-error-container/50 border border-error/70 rounded-full px-3 py-1">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error" />
+                                </span>
+                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-error">{counts[4]} Critical</span>
+                              </div>
+                            )}
+                            {counts[3] > 0 && (
+                              <div className="flex items-center gap-1.5 bg-error-container/25 border border-error/50 rounded-full px-3 py-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-error flex-shrink-0" />
+                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-error">{counts[3]} High Risk</span>
+                              </div>
+                            )}
+                            {counts[2] > 0 && (
+                              <div className="flex items-center gap-1.5 bg-[#1a0800]/80 border border-[#f97316]/50 rounded-full px-3 py-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#f97316] flex-shrink-0" />
+                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-[#f97316]">{counts[2]} Abnormal</span>
+                              </div>
+                            )}
+                            {counts[1] > 0 && (
+                              <div className="flex items-center gap-1.5 bg-[#1e1500]/80 border border-tertiary/50 rounded-full px-3 py-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-tertiary flex-shrink-0" />
+                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-tertiary">{counts[1]} Borderline</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
-                          return (
-                            <div key={i} className={`p-4 rounded-2xl border transition-colors ${
-                              isAbnormal
-                                ? 'col-span-2 bg-error/5 border-error/25 hover:bg-error/8'
-                                : 'bg-surface-container border-outline-variant/10 hover:border-primary/20'
-                            }`}>
-                              <div className="flex justify-between items-start mb-2">
-                                <p className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant font-bold truncate pr-2">{marker.name}</p>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                  {marker.trend && <TrendIcon size={10} className={trendColor} />}
-                                  <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
-                                    isAbnormal ? 'bg-error text-on-error' : 'bg-primary/15 text-primary'
-                                  }`}>
-                                    {marker.status || 'Normal'}
-                                  </span>
+                      {/* ── Marker cards — sorted most dangerous first ── */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {[...user.clinical_profile.latest_markers]
+                          .sort((a, b) => getDangerLevel(b) - getDangerLevel(a))
+                          .map((marker, i) => {
+                            const level = getDangerLevel(marker);
+                            const cfg   = DANGER_CONFIG[level];
+                            const s     = (marker.status || '').toLowerCase();
+                            const t     = (marker.trend  || '').toLowerCase();
+                            const isGoodTrend = (s === 'high' && t === 'down') || (s === 'low' && t === 'up');
+                            const TrendIcon   = t === 'up' ? TrendingUp : t === 'down' ? TrendingDown : Minus;
+                            const trendColor  = level === 0 ? 'text-on-surface-variant'
+                                              : isGoodTrend ? 'text-primary'
+                                              : cfg.val;
+                            return (
+                              <div
+                                key={i}
+                                className={`relative overflow-hidden rounded-2xl border transition-all duration-300 ${cfg.span ? 'col-span-2' : ''} ${cfg.card}`}
+                              >
+                                {/* Left severity strip */}
+                                <div className={`absolute inset-y-0 left-0 w-[3px] ${cfg.strip}`} />
+
+                                <div className="pl-4 pr-3 py-4">
+                                  {/* Name + badge row */}
+                                  <div className="flex justify-between items-start mb-2.5 gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      {cfg.pulse && (
+                                        <span className="relative flex h-2 w-2 flex-shrink-0">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
+                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-error" />
+                                        </span>
+                                      )}
+                                      <p className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant font-bold truncate">
+                                        {marker.name}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                      {marker.trend && (
+                                        <TrendIcon size={10} className={trendColor} />
+                                      )}
+                                      <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md ${cfg.badge}`}>
+                                        {cfg.label}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Value */}
+                                  <p className={`font-headline text-2xl italic leading-none ${cfg.val}`}>
+                                    {marker.value}{' '}
+                                    <span className="text-[10px] font-sans not-italic text-on-surface-variant">{marker.unit}</span>
+                                  </p>
+
+                                  {/* Description — shown for all non-normal markers */}
+                                  {level > 0 && marker.description && (
+                                    <p className={`mt-2.5 text-[10px] font-label leading-relaxed border-t border-white/5 pt-2 ${cfg.desc}`}>
+                                      {marker.description}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
-                              <p className={`font-headline text-2xl italic leading-none ${isAbnormal ? 'text-error' : 'text-on-surface'}`}>
-                                {marker.value}{' '}
-                                <span className="text-[10px] font-sans not-italic text-on-surface-variant">{marker.unit}</span>
-                              </p>
-                              {isAbnormal && marker.description && (
-                                <p className="mt-2.5 text-[10px] font-label text-error/80 leading-relaxed border-t border-error/10 pt-2">
-                                  {marker.description}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   ) : (
@@ -893,7 +1122,10 @@ export default function Dashboard({ user: initialUser }) {
                   {/* Dynamic Longitudinal Graph */}
                   <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/10 shadow-lg h-[300px] flex flex-col">
                     <div className="flex justify-between items-center mb-4 gap-3">
-                      <h3 className="font-headline text-2xl italic text-on-surface flex-shrink-0">Longitudinal Trends</h3>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <h3 className="font-headline text-2xl italic text-on-surface">Longitudinal Trends</h3>
+                        {refreshingHistory && <Loader2 size={13} className="animate-spin text-primary" />}
+                      </div>
                       {availableMetrics.length > 0 && (
                         <select
                           value={selectedMetric}
@@ -906,12 +1138,17 @@ export default function Dashboard({ user: initialUser }) {
 
                     {medicalHistory.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
-                        <HeartPulse size={32} className="mb-3" />
-                        <p className="font-label text-xs uppercase tracking-widest">Upload a report to see your trend graph</p>
+                        {loadingHistory
+                          ? <Loader2 size={28} className="animate-spin mb-3" />
+                          : <HeartPulse size={32} className="mb-3" />
+                        }
+                        <p className="font-label text-xs uppercase tracking-widest">
+                          {loadingHistory ? 'Loading your data…' : 'Upload a report to see your trend graph'}
+                        </p>
                       </div>
                     ) : (
-                      <div className="flex-1 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div className="flex-1 w-full min-h-0">
+                        <ResponsiveContainer width="100%" height={200}>
                           <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#282a28" vertical={false} />
                             <XAxis dataKey="date" stroke="#89938d" fontSize={10} tickLine={false} axisLine={false} dy={10} />
@@ -938,9 +1175,12 @@ export default function Dashboard({ user: initialUser }) {
 
                   {/* Secured Document Vault */}
                   <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/10 shadow-lg">
-                    <h3 className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-4">Secured Document Vault</h3>
+                    <div className="flex items-center gap-2 mb-4">
+                      <h3 className="font-label text-xs uppercase tracking-widest text-on-surface-variant">Secured Document Vault</h3>
+                      {refreshingHistory && <Loader2 size={11} className="animate-spin text-primary flex-shrink-0" />}
+                    </div>
                     <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                      {loadingHistory ? (
+                      {loadingHistory && medicalHistory.length === 0 ? (
                         <Loader2 className="animate-spin text-primary mx-auto my-10 block" />
                       ) : medicalHistory.length === 0 ? (
                         <p className="text-sm font-label text-on-surface-variant italic text-center my-10">Vault is empty. Upload your first report above.</p>

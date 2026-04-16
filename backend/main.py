@@ -30,7 +30,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
-log = logging.getLogger("healbite")
+log = logging.getLogger("poshanpal")
 
 # ── Gemini client ────────────────────────────────────────────
 api_key = os.getenv("GEMINI_API_KEY")
@@ -313,7 +313,7 @@ Return STRICT JSON (no markdown, no code fences):
   }}
 }}
 
-LANGUAGE INSTRUCTION: Translate the values of 'description' and 'master_directive' into the language matching BCP-47 code: {user_lang}. All JSON keys must remain in English.
+LANGUAGE INSTRUCTION: Write ALL text values — 'description', 'ai_protocols' (every item in the array), and 'master_directive' — in the language matching BCP-47 code: {user_lang}. All JSON keys must remain in English.
 
 Set "is_medical_report": false ONLY if the image is completely unrelated to health
 (e.g. a food photo, ID card, receipt, or blank page).
@@ -413,7 +413,7 @@ async def get_medical_history(user_id: str):
     async for doc in cursor:
         doc["id"] = str(doc["_id"])
         del doc["_id"]
-        doc["upload_date"] = doc["upload_date"].strftime("%b %d, %Y")
+        doc["upload_date"] = doc["upload_date"].strftime("%b %d, %Y %H:%M")
         reports.append(doc)
     return {"reports": reports}
 

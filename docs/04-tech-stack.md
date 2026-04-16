@@ -1,6 +1,6 @@
 # Tech Stack
 
-A full breakdown of every technology used in HealBite — what it is, what role it plays, and where it lives in the codebase.
+A full breakdown of every technology used in PoshanPal — what it is, what role it plays, and where it lives in the codebase.
 
 ---
 
@@ -93,7 +93,7 @@ Requires Chrome or a Chromium-based browser; the code gracefully degrades with a
 
 ### Git + GitHub
 **What:** Version control system and code hosting  
-**Role:** The full project history is tracked in Git. The remote is hosted at `https://github.com/joshjv11/AaharVoice.git`. All feature work is committed and pushed to `main`.
+**Role:** The full project history is tracked in Git. The remote is hosted at `https://github.com/joshjv11/PoshanPal.git`. All feature work is committed and pushed to `main`.
 
 ### ESLint
 **What:** JavaScript/JSX linter  

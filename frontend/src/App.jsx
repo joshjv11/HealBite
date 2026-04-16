@@ -35,6 +35,36 @@ const REGION_OPTIONS = [
   { value: 'Western', emoji: '🥗', label: 'Western',      desc: 'Salads, wraps, grilled'  },
 ];
 
+// Each entry carries the native-script text AND a romanised English fallback.
+// The fallback is spoken when the device has no voice for that language,
+// preventing the wrong TTS engine from producing silence or garbled output.
+const WELCOME_GREETINGS = {
+  'hi-IN': {
+    text:     'PoshanPal में आपका स्वागत है। अपना नाम बताइए।',
+    fallback: 'PoshanPal mein aapka swagat hai. Apna naam bataiye.',
+  },
+  'mr-IN': {
+    text:     'PoshanPal मध्ये आपले स्वागत आहे। आपले नाव सांगा।',
+    fallback: 'PoshanPal madhye aapale swagat aahe. Aapale naav saanga.',
+  },
+  'ta-IN': {
+    text:     'PoshanPal-இல் உங்களை வரவேற்கிறோம். உங்கள் பெயரைச் சொல்லுங்கள்.',
+    fallback: 'Vanakkam! Welcome to PoshanPal. Please tell us your name.',
+  },
+  'bn-IN': {
+    text:     'PoshanPal-এ আপনাকে স্বাগতম। আপনার নাম বলুন।',
+    fallback: 'Namaskar! Welcome to PoshanPal. Please tell us your name.',
+  },
+  'gu-IN': {
+    text:     'PoshanPal માં આપનું સ્વાગત છે। આપનું નામ કહો.',
+    fallback: 'Kem chho! Welcome to PoshanPal. Please tell us your name.',
+  },
+  'en-IN': {
+    text:     'Welcome to PoshanPal. Please tell us your name.',
+    fallback: null,
+  },
+};
+
 const TOAST_STYLE = {
   style: {
     background: '#1e201e',
@@ -60,7 +90,7 @@ export default function App() {
   });
 
   /* ── Voice Input ──────────────────────────────── */
-  const NUMERIC_FIELDS = new Set(['current_weight', 'target_weight', 'height_cm']);
+  const NUMERIC_FIELDS = new Set(['age', 'current_weight', 'target_weight', 'height_cm']);
 
   const handleListen = (field) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -91,6 +121,11 @@ export default function App() {
         // Extract the first number spoken (handles "seventy five kilos" → "75")
         const match = raw.match(/\d+(\.\d+)?/);
         value = match ? match[0] : raw.replace(/[^\d.]/g, '').trim();
+        // If no number could be extracted, warn and bail — never put text into a number input
+        if (!value) {
+          toast("No number detected. Please speak a number or type it.", { icon: '🔢', ...TOAST_STYLE });
+          return;
+        }
       } else {
         value = raw.replace(/[^\p{L}\p{N}\p{Zs}]/gu, '').trim();
       }
@@ -149,6 +184,7 @@ export default function App() {
     try {
       const payload = {
         ...form,
+        age:            parseInt(form.age, 10),
         current_weight: parseFloat(form.current_weight),
         target_weight:  parseFloat(form.target_weight),
         height_cm:      parseFloat(form.height_cm),
@@ -177,7 +213,7 @@ export default function App() {
       <div className="w-full max-w-sm">
         {/* Brand mark */}
         <div className="text-center mb-8">
-          <span className="font-headline text-4xl italic text-on-surface tracking-tight">HealBite</span>
+          <span className="font-headline text-4xl italic text-on-surface tracking-tight">PoshanPal</span>
         </div>
 
         {/* Main card */}
@@ -201,7 +237,14 @@ export default function App() {
             {step > 0 && (
               <div className="flex items-center justify-between mb-8">
                 <button
-                  onClick={() => setStep(s => s - 1)}
+                  onClick={() => {
+                    if (recognitionRef.current) {
+                      recognitionRef.current.abort();
+                      recognitionRef.current = null;
+                      setListeningField(null);
+                    }
+                    setStep(s => s - 1);
+                  }}
                   className="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors"
                 >
                   <ArrowLeft size={13} /> Back
@@ -247,7 +290,8 @@ export default function App() {
                         key={lang.code}
                         onClick={() => {
                           setForm(p => ({ ...p, language: lang.code }));
-                          speakText('Welcome to HealBite', lang.code);
+                          const g = WELCOME_GREETINGS[lang.code];
+                          speakText(g.text, lang.code, g.fallback);
                           setStep(1);
                         }}
                         className="py-4 bg-surface-container border border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-high rounded-xl flex flex-col items-center gap-1.5 transition-all active:scale-[0.98]"
@@ -338,7 +382,7 @@ export default function App() {
                     const active  = listeningField === field;
                     const current = parseFloat(form[field]) || 0;
 
-                    const step = (dir) => {
+                    const adjust = (dir) => {
                       const next = Math.min(max, Math.max(min, current + dir));
                       setForm(p => ({ ...p, [field]: String(next) }));
                     };
@@ -353,7 +397,7 @@ export default function App() {
                           {/* Decrement */}
                           <button
                             type="button"
-                            onClick={() => step(-1)}
+                            onClick={() => adjust(-1)}
                             className="w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error/5 active:scale-95 transition-all py-3">
                             <Minus size={16} />
                             <span className="font-label text-[8px] uppercase tracking-widest opacity-50">−1</span>
@@ -379,7 +423,7 @@ export default function App() {
                           {/* Increment */}
                           <button
                             type="button"
-                            onClick={() => step(1)}
+                            onClick={() => adjust(1)}
                             className="w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 hover:bg-primary/5 active:scale-95 transition-all py-3">
                             <Plus size={16} />
                             <span className="font-label text-[8px] uppercase tracking-widest opacity-50">+1</span>

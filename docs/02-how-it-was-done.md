@@ -7,10 +7,10 @@
 
 ```html
 <!-- Before -->
-<title>AaharVoice</title>
+<title>PoshanPal</title>
 
 <!-- After -->
-<title>HealBite</title>
+<title>PoshanPal</title>
 ```
 
 ### Step 2 — Welcome screen brand mark (App.jsx)
@@ -18,10 +18,10 @@ The onboarding flow lives in `App.jsx`. The brand name was rendered as a plain `
 
 ```jsx
 // Before
-<span className="font-headline text-4xl italic text-on-surface tracking-tight">AaharVoice</span>
+<span className="font-headline text-4xl italic text-on-surface tracking-tight">PoshanPal</span>
 
 // After
-<span className="font-headline text-4xl italic text-on-surface tracking-tight">HealBite</span>
+<span className="font-headline text-4xl italic text-on-surface tracking-tight">PoshanPal</span>
 ```
 
 ### Step 3 — Text-to-speech greeting (App.jsx)
@@ -29,10 +29,10 @@ When a user taps a language button on the language-select screen, a `speakText()
 
 ```js
 // Before
-speakText('Welcome to AaharVoice', lang.code);
+speakText('Welcome to PoshanPal', lang.code);
 
 // After
-speakText('Welcome to HealBite', lang.code);
+speakText('Welcome to PoshanPal', lang.code);
 ```
 
 ### Step 4 — Nav bar brand (Dashboard.jsx)
@@ -78,9 +78,9 @@ Changes were staged selectively (only the three frontend files that were modifie
 
 ```
 git add frontend/index.html frontend/src/App.jsx frontend/src/Dashboard.jsx
-git commit -m "Rebrand to HealBite + connect Pantry Chef to Journal"
+git commit -m "Rebrand to PoshanPal + connect Pantry Chef to Journal"
 git push origin main
 ```
 
 Commit hash: `df634f5`  
-Remote: `https://github.com/joshjv11/AaharVoice.git`
+Remote: `https://github.com/joshjv11/PoshanPal.git`
