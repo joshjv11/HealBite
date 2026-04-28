@@ -39,7 +39,16 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 JSON_CONFIG   = types.GenerateContentConfig(response_mime_type="application/json")
-GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
+
+# Models tried in order — each has an independent quota pool, so exhausting one
+# still leaves the others available as automatic fallbacks.
+GEMINI_MODELS = [
+    "gemini-2.5-flash",       # primary   — largest context, best quality
+    "gemini-2.0-flash",       # fallback 1
+    "gemini-2.0-flash-lite",  # fallback 2
+    "gemini-1.5-flash",       # fallback 3 — separate quota pool
+    "gemini-1.5-flash-8b",    # fallback 4 — lightest, almost always available
+]
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -56,6 +65,41 @@ app.add_middleware(
 
 # Serve saved report images
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.on_event("startup")
+async def _validate_gemini_key():
+    """Probe Gemini at boot so a bad/expired key is caught immediately."""
+    probe_prompt = "Reply with the single word: OK"
+    working = None
+    for model in GEMINI_MODELS:
+        try:
+            resp = await asyncio.to_thread(
+                client.models.generate_content,
+                model=model,
+                contents=probe_prompt,
+            )
+            if resp.text:
+                working = model
+                break
+        except Exception as e:
+            err = str(e)[:80]
+            if "expired" in err.lower() or "API_KEY_INVALID" in err:
+                log.critical("╔══ GEMINI KEY INVALID ══╗")
+                log.critical("║ Key is expired or wrong. Update GEMINI_API_KEY in backend/.env and restart. ║")
+                log.critical("╚════════════════════════╝")
+                return
+            log.warning("Startup probe [%s] failed: %s", model, err)
+
+    if working:
+        log.info("✓ Gemini key validated — active model: %s", working)
+    else:
+        log.critical("╔══ ALL GEMINI MODELS QUOTA-EXHAUSTED ON STARTUP ══╗")
+        log.critical("║ All free-tier quotas are at 0. Options:           ║")
+        log.critical("║  1. Wait until midnight PT for daily reset         ║")
+        log.critical("║  2. Enable billing at console.cloud.google.com     ║")
+        log.critical("║  3. Use a fresh Google account at aistudio.google  ║")
+        log.critical("╚════════════════════════════════════════════════════╝")
 
 # ── Helpers ──────────────────────────────────────────────────
 def format_doc(doc: dict) -> dict:
@@ -75,7 +119,12 @@ def clean_json(raw: str) -> str:
     return cleaned.strip()
 
 def _is_quota_error(e: Exception) -> bool:
-    return "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+    s = str(e)
+    return "429" in s or "RESOURCE_EXHAUSTED" in s
+
+def _is_key_error(e: Exception) -> bool:
+    s = str(e).lower()
+    return "api key" in s or "api_key_invalid" in s or "key expired" in s
 
 def _call_gemini(prompt: str, contents: list = None) -> str:
     payload = contents if contents else [prompt]
@@ -392,11 +441,10 @@ Set "is_medical_report": false ONLY if the image is completely unrelated to heal
         raise HTTPException(status_code=504, detail="Analysis timed out. Please try again.")
     except Exception as e:
         log.error("Medical scan error: %s", e)
+        if _is_key_error(e):
+            raise HTTPException(status_code=503, detail="Gemini API key is expired or invalid. Update GEMINI_API_KEY in backend/.env and restart the server.")
         if _is_quota_error(e):
-            raise HTTPException(
-                status_code=503,
-                detail="API quota exhausted. Go to aistudio.google.com/apikey → copy key from 'Default Gemini Project' row → paste into backend/.env and restart.",
-            )
+            raise HTTPException(status_code=503, detail="All Gemini quotas exhausted for today. Wait until midnight PT, enable billing at console.cloud.google.com, or use a fresh Google account at aistudio.google.com.")
         raise HTTPException(status_code=500, detail="Failed to analyze report. Please ensure the image is clear and well-lit.")
     finally:
         if not keep_file and os.path.exists(filepath):
