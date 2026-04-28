@@ -66,6 +66,18 @@ export default {
         'on-error':          '#690005',
         'on-error-container':'#ffdad6',
       },
+      fontSize: {
+        // Nudge every named size up ~1-2px so text is easier to read on all screens
+        'xs':   ['0.8125rem', { lineHeight: '1.25rem'  }],   // 13.8px (was 12)
+        'sm':   ['0.9375rem', { lineHeight: '1.4375rem'}],   // 15.9px (was 14)
+        'base': ['1.0625rem', { lineHeight: '1.65rem'  }],   // 18.1px (was 16)
+        'lg':   ['1.1875rem', { lineHeight: '1.8rem'   }],   // 20.2px (was 18)
+        'xl':   ['1.3125rem', { lineHeight: '1.9rem'   }],   // 22.3px (was 20)
+        '2xl':  ['1.625rem',  { lineHeight: '2.1rem'   }],   // 27.6px (was 24)
+        '3xl':  ['2rem',      { lineHeight: '2.3rem'   }],   // 34px   (was 30)
+        '4xl':  ['2.625rem',  { lineHeight: '2.85rem'  }],   // 44.6px (was 36)
+        '6xl':  ['4rem',      { lineHeight: '1'        }],   // 68px   (was 60)
+      },
       animation: {
         'shimmer':       'shimmer 1.8s infinite',
         'fade-up':       'fadeUp 0.4s ease-out forwards',

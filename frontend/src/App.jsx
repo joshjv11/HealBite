@@ -189,7 +189,8 @@ export default function App() {
         target_weight:  parseFloat(form.target_weight),
         height_cm:      parseFloat(form.height_cm),
       };
-      const res = await axios.post('http://127.0.0.1:8000/api/users/', payload);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const res = await axios.post(`${API_URL}/api/users/`, payload);
       setUserData(res.data);
     } catch {
       toast.error('Could not reach server. Is the backend running?', TOAST_STYLE);
@@ -245,7 +246,7 @@ export default function App() {
                     }
                     setStep(s => s - 1);
                   }}
-                  className="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors"
+                  className="flex items-center gap-1.5 text-[13px] font-label uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors"
                 >
                   <ArrowLeft size={13} /> Back
                 </button>
@@ -261,7 +262,7 @@ export default function App() {
                     />
                   ))}
                 </div>
-                <span className="text-[10px] font-label text-on-surface-variant tabular-nums">{step} / {TOTAL_STEPS}</span>
+                <span className="text-[13px] font-label text-on-surface-variant tabular-nums">{step} / {TOTAL_STEPS}</span>
               </div>
             )}
 
@@ -279,7 +280,7 @@ export default function App() {
                     <h1 className="font-headline text-4xl italic text-on-surface leading-tight">
                       Welcome.
                     </h1>
-                    <p className="font-label text-[10px] uppercase tracking-[0.2em] text-tertiary mt-4">
+                    <p className="font-label text-[13px] uppercase tracking-[0.2em] text-tertiary mt-4">
                       Select your language
                     </p>
                   </div>
@@ -298,12 +299,12 @@ export default function App() {
                       >
                         <span className="text-2xl">{lang.icon}</span>
                         <span className="font-label font-bold text-on-surface text-lg">{lang.label}</span>
-                        <span className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">{lang.englishLabel}</span>
+                        <span className="font-label text-[12px] uppercase tracking-widest text-on-surface-variant">{lang.englishLabel}</span>
                       </button>
                     ))}
                   </div>
 
-                    <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/40">
+                    <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant/40">
                     Your personal nutrition companion
                   </p>
                 </motion.div>
@@ -343,7 +344,7 @@ export default function App() {
                     >
                       {listeningField === 'name' ? <MicOff size={22} /> : <Mic size={22} />}
                     </motion.button>
-                    <span className={`text-[10px] font-label uppercase tracking-widest transition-colors ${
+                    <span className={`text-[13px] font-label uppercase tracking-widest transition-colors ${
                       listeningField === 'name' ? 'text-tertiary' : 'text-on-surface-variant/40'
                     }`}>
                       {listeningField === 'name' ? '● Listening…' : 'Tap to speak'}
@@ -389,7 +390,7 @@ export default function App() {
 
                     return (
                       <div key={field}>
-                        <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant flex items-center gap-1.5 mb-2">
+                        <label className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant flex items-center gap-1.5 mb-2">
                           <Icon size={11} /> {label}
                         </label>
 
@@ -400,7 +401,7 @@ export default function App() {
                             onClick={() => adjust(-1)}
                             className="w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error/5 active:scale-95 transition-all py-3">
                             <Minus size={16} />
-                            <span className="font-label text-[8px] uppercase tracking-widest opacity-50">−1</span>
+                            <span className="font-label text-[13px] uppercase tracking-widest opacity-50">−1</span>
                           </button>
 
                           {/* Central editable display */}
@@ -426,7 +427,7 @@ export default function App() {
                             onClick={() => adjust(1)}
                             className="w-12 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 hover:bg-primary/5 active:scale-95 transition-all py-3">
                             <Plus size={16} />
-                            <span className="font-label text-[8px] uppercase tracking-widest opacity-50">+1</span>
+                            <span className="font-label text-[13px] uppercase tracking-widest opacity-50">+1</span>
                           </button>
 
                           {/* Mic — full-height dedicated button, same tier as +/− */}
@@ -439,14 +440,14 @@ export default function App() {
                                 : 'bg-surface-container border-outline-variant/30 text-on-surface-variant hover:text-tertiary hover:border-tertiary/50 hover:bg-tertiary/5'
                             }`}>
                             {active ? <MicOff size={18} /> : <Mic size={18} />}
-                            <span className="font-label text-[8px] uppercase tracking-widest opacity-50">
+                            <span className="font-label text-[13px] uppercase tracking-widest opacity-50">
                               {active ? 'stop' : 'voice'}
                             </span>
                           </button>
                         </div>
 
                         {/* Range hint */}
-                        <p className="font-label text-[9px] text-on-surface-variant/40 uppercase tracking-widest mt-1.5 text-center">
+                        <p className="font-label text-[12px] text-on-surface-variant/40 uppercase tracking-widest mt-1.5 text-center">
                           {min}–{max} {unit}
                         </p>
                       </div>
@@ -476,7 +477,7 @@ export default function App() {
 
                   {/* Allergies */}
                   <div>
-                    <p className="font-label text-[10px] uppercase tracking-widest text-error/70 flex items-center gap-1.5 mb-3">
+                    <p className="font-label text-[13px] uppercase tracking-widest text-error/70 flex items-center gap-1.5 mb-3">
                       <AlertCircle size={11} /> Avoid these
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -503,7 +504,7 @@ export default function App() {
 
                   {/* Region */}
                   <div>
-                    <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-3">
+                    <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant mb-3">
                       Cuisine preference
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -521,10 +522,10 @@ export default function App() {
                           >
                             <span className="text-xl">{emoji}</span>
                             <p className={`font-label font-semibold text-sm mt-1 ${sel ? 'text-primary' : 'text-on-surface'}`}>{label}</p>
-                            <p className="font-label text-[10px] text-on-surface-variant/60 leading-snug">{desc}</p>
+                            <p className="font-label text-[13px] text-on-surface-variant/60 leading-snug">{desc}</p>
                             {sel && (
                               <div className="mt-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                                <span className="text-on-primary text-[8px] font-bold">✓</span>
+                                <span className="text-on-primary text-[13px] font-bold">✓</span>
                               </div>
                             )}
                           </button>

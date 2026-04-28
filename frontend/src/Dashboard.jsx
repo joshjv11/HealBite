@@ -23,7 +23,7 @@ const TOAST_STYLE = {
   },
 };
 
-const API = 'http://127.0.0.1:8000';
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 function bmiRing(bmi) {
   if (bmi < 18.5) return { label: 'Underweight', cls: 'text-primary',  pct: 30 };
@@ -191,14 +191,14 @@ function FeedbackModal({ user, onClose }) {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Type selector */}
             <div>
-              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Feedback Type</p>
+              <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant mb-2">Feedback Type</p>
               <div className="grid grid-cols-3 gap-2">
                 {['Bug Report', 'Feature Request', 'General Comment'].map(type => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setFeedbackType(type)}
-                    className={`py-2.5 px-2 rounded-xl text-[11px] font-bold font-label tracking-wide transition-all border ${
+                    className={`py-2.5 px-2 rounded-xl text-[13px] font-bold font-label tracking-wide transition-all border ${
                       feedbackType === type
                         ? 'bg-primary/20 text-primary border-primary/40'
                         : 'bg-surface-container border-outline-variant/20 text-on-surface-variant hover:border-outline-variant/50'
@@ -213,8 +213,8 @@ function FeedbackModal({ user, onClose }) {
             {/* Message */}
             <div>
               <div className="flex justify-between items-baseline mb-2">
-                <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Your Message</p>
-                <span className={`font-label text-[10px] tabular-nums ${message.length >= FEEDBACK_MAX ? 'text-error' : 'text-on-surface-variant/60'}`}>
+                <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant">Your Message</p>
+                <span className={`font-label text-[13px] tabular-nums ${message.length >= FEEDBACK_MAX ? 'text-error' : 'text-on-surface-variant/60'}`}>
                   {message.length}/{FEEDBACK_MAX}
                 </span>
               </div>
@@ -617,7 +617,7 @@ export default function Dashboard({ user: initialUser }) {
         </div>
         <div className="flex items-center gap-3">
           {hasDirective && (
-            <div className="hidden md:flex items-center gap-1.5 bg-primary/10 border border-primary/30 text-primary px-3 py-1.5 rounded-full text-[10px] font-label font-bold uppercase tracking-widest">
+            <div className="hidden md:flex items-center gap-1.5 bg-primary/10 border border-primary/30 text-primary px-3 py-1.5 rounded-full text-[13px] font-label font-bold uppercase tracking-widest">
               <ShieldCheck size={13} /> Clinical Guard Active
             </div>
           )}
@@ -681,7 +681,7 @@ export default function Dashboard({ user: initialUser }) {
               <div className="flex justify-between items-center mb-6 border-b border-outline-variant/10 pb-4">
                 <div>
                   <h2 className="font-headline text-3xl italic text-on-surface">Your 7-Day Clinical Plan</h2>
-                  <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mt-1">
+                  <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant mt-1">
                     Plan is fixed for 7 days · refreshes automatically after expiry
                   </p>
                 </div>
@@ -753,11 +753,11 @@ export default function Dashboard({ user: initialUser }) {
                                   <Volume2 size={16} />
                                 </button>
                                 <div className="absolute bottom-5 left-5 right-5 flex gap-2 flex-wrap">
-                                  <span className={`text-[10px] font-label uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm border ${style.tag}`}>
+                                  <span className={`text-[13px] font-label uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm border ${style.tag}`}>
                                     {style.icon} {style.label}
                                   </span>
                                   {pctDay > 0 && (
-                                    <span className="bg-surface-container-lowest/50 text-on-surface-variant text-[10px] font-label uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm border border-outline-variant/20">
+                                    <span className="bg-surface-container-lowest/50 text-on-surface-variant text-[13px] font-label uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm border border-outline-variant/20">
                                       {pctDay}% daily
                                     </span>
                                   )}
@@ -765,7 +765,7 @@ export default function Dashboard({ user: initialUser }) {
                               </div>
 
                               <h3 className="font-headline text-2xl italic mb-1.5 group-hover:text-primary transition-colors leading-tight text-on-surface">{meal.name}</h3>
-                              <p className="text-on-surface-variant font-label text-[10px] uppercase tracking-widest mb-3">
+                              <p className="text-on-surface-variant font-label text-[13px] uppercase tracking-widest mb-3">
                                 {selectedDay} · {meal.category}
                               </p>
 
@@ -775,18 +775,18 @@ export default function Dashboard({ user: initialUser }) {
                                   {meal.clinical_problem && (
                                     <div className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border-b border-primary/15">
                                       <ShieldCheck size={11} className="text-primary flex-shrink-0" />
-                                      <p className="font-label text-[10px] font-bold uppercase tracking-widest text-primary truncate">
+                                      <p className="font-label text-[13px] font-bold uppercase tracking-widest text-primary truncate">
                                         {meal.clinical_problem}
                                       </p>
                                     </div>
                                   )}
                                   <div className="flex gap-2 items-start px-3 py-2.5">
                                     {!meal.clinical_problem && <ShieldCheck size={12} className="text-primary flex-shrink-0 mt-0.5" />}
-                                    <p className="font-label text-[11px] text-primary/90 leading-relaxed">{meal.clinical_reasoning}</p>
+                                    <p className="font-label text-[13px] text-primary/90 leading-relaxed">{meal.clinical_reasoning}</p>
                                   </div>
                                 </div>
                               ) : meal.reasoning ? (
-                                <p className="font-label text-[11px] text-on-surface-variant leading-relaxed mb-4 opacity-75">{meal.reasoning}</p>
+                                <p className="font-label text-[13px] text-on-surface-variant leading-relaxed mb-4 opacity-75">{meal.reasoning}</p>
                               ) : null}
 
                               <div className="flex items-center gap-4 text-xs font-label text-on-surface-variant mb-4">
@@ -833,25 +833,25 @@ export default function Dashboard({ user: initialUser }) {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="font-label text-5xl font-bold text-primary">{trackerStats.total_cal}</span>
-                    <span className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">/ {user.target_cal} kcal</span>
+                    <span className="font-label text-[13px] text-on-surface-variant uppercase tracking-widest mt-1">/ {user.target_cal} kcal</span>
                   </div>
                 </div>
 
                 <div className="flex justify-around border-t border-outline-variant/10 pt-6">
                   <div className="text-center">
                     <p className="text-tertiary text-2xl font-bold font-label">{trackerStats.total_pro}g</p>
-                    <p className="text-[10px] text-on-surface-variant font-label uppercase tracking-widest">Protein</p>
+                    <p className="text-[13px] text-on-surface-variant font-label uppercase tracking-widest">Protein</p>
                   </div>
                   <div className="text-center">
                     <p className={`text-2xl font-bold font-label ${user.target_cal - trackerStats.total_cal < 0 ? 'text-error' : 'text-on-surface'}`}>
                       {Math.max(user.target_cal - trackerStats.total_cal, 0)}
                     </p>
-                    <p className="text-[10px] text-on-surface-variant font-label uppercase tracking-widest">Remaining</p>
+                    <p className="text-[13px] text-on-surface-variant font-label uppercase tracking-widest">Remaining</p>
                   </div>
                 </div>
               </div>
 
-              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-4 px-1">Today's log</p>
+              <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant mb-4 px-1">Today's log</p>
               <div className="space-y-2">
                 {trackerStats.eaten_meals?.length === 0 && (
                   <p className="font-label text-sm text-on-surface-variant px-1">No meals logged yet. Head to Weekly Plan and tap "Log this meal".</p>
@@ -862,7 +862,7 @@ export default function Dashboard({ user: initialUser }) {
                       className="flex justify-between items-center bg-surface-container p-4 rounded-2xl border border-outline-variant/10">
                       <div>
                         <p className="font-label font-bold text-on-surface text-sm">{entry.name}</p>
-                        <p className="font-label text-[10px] text-primary uppercase tracking-wider">{entry.calories} kcal</p>
+                        <p className="font-label text-[13px] text-primary uppercase tracking-wider">{entry.calories} kcal</p>
                       </div>
                       <button onClick={() => undoLog(entry.name)}
                         className="text-error/60 hover:text-error bg-error/10 hover:bg-error/20 p-2.5 rounded-xl transition-all">
@@ -887,7 +887,7 @@ export default function Dashboard({ user: initialUser }) {
                   </div>
                   <div>
                     <h2 className="font-headline text-3xl italic text-on-surface">Pantry Chef</h2>
-                    <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mt-1">Describe what's in your fridge</p>
+                    <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant mt-1">Describe what's in your fridge</p>
                   </div>
                 </div>
 
@@ -914,21 +914,21 @@ export default function Dashboard({ user: initialUser }) {
                     <div className="flex items-start justify-between">
                       <span className="text-5xl drop-shadow-lg">{pantryResult.emoji}</span>
                       {pantryResult.source === 'fallback' && (
-                        <span className="font-label text-[10px] text-tertiary bg-tertiary/10 px-2.5 py-1 rounded-full border border-tertiary/20 uppercase tracking-widest">offline recipe</span>
+                        <span className="font-label text-[13px] text-tertiary bg-tertiary/10 px-2.5 py-1 rounded-full border border-tertiary/20 uppercase tracking-widest">offline recipe</span>
                       )}
                     </div>
                     <h3 className="font-headline text-2xl italic text-tertiary mt-4 mb-2">{pantryResult.name}</h3>
                     <p className="font-label text-sm text-on-surface-variant mb-5 leading-relaxed">{pantryResult.instructions}</p>
                     <div className="flex gap-3 flex-wrap">
-                      <span className="font-label text-[10px] uppercase tracking-wider text-primary flex items-center gap-1.5 bg-surface px-3 py-2 rounded-xl border border-outline-variant/10">
+                      <span className="font-label text-[13px] uppercase tracking-wider text-primary flex items-center gap-1.5 bg-surface px-3 py-2 rounded-xl border border-outline-variant/10">
                         <Flame size={12} /> {pantryResult.calories} kcal
                       </span>
-                      <span className="font-label text-[10px] uppercase tracking-wider text-tertiary flex items-center gap-1.5 bg-surface px-3 py-2 rounded-xl border border-outline-variant/10">
+                      <span className="font-label text-[13px] uppercase tracking-wider text-tertiary flex items-center gap-1.5 bg-surface px-3 py-2 rounded-xl border border-outline-variant/10">
                         <Beef size={12} /> {pantryResult.protein}g protein
                       </span>
                     </div>
                     {pantryResult.missing_basics && (
-                      <p className="font-label text-[10px] text-on-surface-variant mt-4 uppercase tracking-widest">
+                      <p className="font-label text-[13px] text-on-surface-variant mt-4 uppercase tracking-widest">
                         You may need: {pantryResult.missing_basics}
                       </p>
                     )}
@@ -988,7 +988,7 @@ export default function Dashboard({ user: initialUser }) {
                     </pre>
                     <button
                       onClick={() => copyToClipboard(briefing)}
-                      className="mt-4 text-primary font-label text-[10px] uppercase tracking-widest flex items-center gap-1.5 hover:underline">
+                      className="mt-4 text-primary font-label text-[13px] uppercase tracking-widest flex items-center gap-1.5 hover:underline">
                       <Clipboard size={12} /> Copy to Clipboard
                     </button>
                   </motion.div>
@@ -1006,27 +1006,27 @@ export default function Dashboard({ user: initialUser }) {
                       if (!markers.length) return null;
                       const maxLevel = Math.max(...markers.map(getDangerLevel));
                       if (maxLevel === 0) return (
-                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
                           All Clear
                         </span>
                       );
                       if (maxLevel === 1) return (
-                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-tertiary/20 text-tertiary border border-tertiary/40">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-tertiary/20 text-tertiary border border-tertiary/40">
                           Watch
                         </span>
                       );
                       if (maxLevel === 2) return (
-                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#1a0800]/80 text-[#f97316] border border-[#f97316]/50">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#1a0800]/80 text-[#f97316] border border-[#f97316]/50">
                           Moderate Risk
                         </span>
                       );
                       if (maxLevel === 3) return (
-                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/25 text-error border border-error/50">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/25 text-error border border-error/50">
                           High Risk
                         </span>
                       );
                       return (
-                        <span className="font-label text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/50 text-error border border-error/80 flex items-center gap-1.5">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/50 text-error border border-error/80 flex items-center gap-1.5">
                           <span className="relative flex h-1.5 w-1.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error" />
@@ -1050,12 +1050,12 @@ export default function Dashboard({ user: initialUser }) {
                 <div className="flex flex-wrap gap-2 justify-start md:justify-end">
                   {user.clinical_profile?.chronic_conditions?.length > 0
                     ? user.clinical_profile.chronic_conditions.map((cond, i) => (
-                        <span key={i} className="bg-error/10 border border-error/30 text-error px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                        <span key={i} className="bg-error/10 border border-error/30 text-error px-3 py-1.5 rounded-xl text-[13px] font-bold uppercase tracking-widest flex items-center gap-1.5">
                           <Activity size={12} /> {cond}
                         </span>
                       ))
                     : (
-                      <span className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/50 italic">
+                      <span className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant/50 italic">
                         No chronic conditions on record
                       </span>
                     )
@@ -1077,7 +1077,7 @@ export default function Dashboard({ user: initialUser }) {
                     <p className="font-label font-bold text-on-surface text-sm">
                       {reportFile ? reportFile.name : 'Upload New Lab Report'}
                     </p>
-                    <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">
+                    <p className="font-label text-[13px] text-on-surface-variant uppercase tracking-widest mt-1">
                       {reportFile ? 'File ready — click below to process' : 'JPG · PNG · WEBP · Max 10 MB'}
                     </p>
 
@@ -1102,7 +1102,7 @@ export default function Dashboard({ user: initialUser }) {
                         <h3 className="font-headline text-2xl italic text-on-surface">Vital Biomarkers</h3>
                         <div className="flex items-center gap-2">
                           {refreshingHistory && <Loader2 size={11} className="animate-spin text-primary" />}
-                          <span className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">Aggregated Profile</span>
+                          <span className="font-label text-[12px] uppercase tracking-widest text-on-surface-variant">Aggregated Profile</span>
                         </div>
                       </div>
 
@@ -1123,25 +1123,25 @@ export default function Dashboard({ user: initialUser }) {
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
                                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error" />
                                 </span>
-                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-error">{counts[4]} Critical</span>
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-error">{counts[4]} Critical</span>
                               </div>
                             )}
                             {counts[3] > 0 && (
                               <div className="flex items-center gap-1.5 bg-error-container/25 border border-error/50 rounded-full px-3 py-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-error flex-shrink-0" />
-                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-error">{counts[3]} High Risk</span>
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-error">{counts[3]} High Risk</span>
                               </div>
                             )}
                             {counts[2] > 0 && (
                               <div className="flex items-center gap-1.5 bg-[#1a0800]/80 border border-[#f97316]/50 rounded-full px-3 py-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#f97316] flex-shrink-0" />
-                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-[#f97316]">{counts[2]} Abnormal</span>
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-[#f97316]">{counts[2]} Abnormal</span>
                               </div>
                             )}
                             {counts[1] > 0 && (
                               <div className="flex items-center gap-1.5 bg-[#1e1500]/80 border border-tertiary/50 rounded-full px-3 py-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-tertiary flex-shrink-0" />
-                                <span className="font-label text-[9px] font-bold uppercase tracking-widest text-tertiary">{counts[1]} Borderline</span>
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-tertiary">{counts[1]} Borderline</span>
                               </div>
                             )}
                           </div>
@@ -1180,7 +1180,7 @@ export default function Dashboard({ user: initialUser }) {
                                           <span className="relative inline-flex rounded-full h-2 w-2 bg-error" />
                                         </span>
                                       )}
-                                      <p className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant font-bold truncate">
+                                      <p className="font-label text-[12px] uppercase tracking-widest text-on-surface-variant font-bold truncate">
                                         {marker.name}
                                       </p>
                                     </div>
@@ -1188,7 +1188,7 @@ export default function Dashboard({ user: initialUser }) {
                                       {marker.trend && (
                                         <TrendIcon size={10} className={trendColor} />
                                       )}
-                                      <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md ${cfg.badge}`}>
+                                      <span className={`text-[13px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md ${cfg.badge}`}>
                                         {cfg.label}
                                       </span>
                                     </div>
@@ -1197,12 +1197,12 @@ export default function Dashboard({ user: initialUser }) {
                                   {/* Value */}
                                   <p className={`font-headline text-2xl italic leading-none ${cfg.val}`}>
                                     {marker.value}{' '}
-                                    <span className="text-[10px] font-sans not-italic text-on-surface-variant">{marker.unit}</span>
+                                    <span className="text-[13px] font-sans not-italic text-on-surface-variant">{marker.unit}</span>
                                   </p>
 
                                   {/* Description — shown for all non-normal markers */}
                                   {level > 0 && marker.description && (
-                                    <p className={`mt-2.5 text-[10px] font-label leading-relaxed border-t border-white/5 pt-2 ${cfg.desc}`}>
+                                    <p className={`mt-2.5 text-[13px] font-label leading-relaxed border-t border-white/5 pt-2 ${cfg.desc}`}>
                                       {marker.description}
                                     </p>
                                   )}
@@ -1217,7 +1217,7 @@ export default function Dashboard({ user: initialUser }) {
                       <div className="bg-surface-container-low p-8 rounded-3xl border border-outline-variant/10 text-center opacity-50">
                         <HeartPulse size={36} className="mx-auto mb-3 text-on-surface-variant" />
                         <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant">No biomarker data yet</p>
-                        <p className="font-label text-[10px] text-on-surface-variant mt-1">Upload a lab report to populate your profile</p>
+                        <p className="font-label text-[13px] text-on-surface-variant mt-1">Upload a lab report to populate your profile</p>
                       </div>
                     )
                   )}
@@ -1254,7 +1254,7 @@ export default function Dashboard({ user: initialUser }) {
                         <select
                           value={selectedMetric}
                           onChange={e => setSelectedMetric(e.target.value)}
-                          className="bg-surface-container text-[10px] font-label text-on-surface-variant p-2 rounded-xl border border-outline-variant/20 outline-none cursor-pointer hover:border-primary/40 transition-colors max-w-[180px] truncate">
+                          className="bg-surface-container text-[13px] font-label text-on-surface-variant p-2 rounded-xl border border-outline-variant/20 outline-none cursor-pointer hover:border-primary/40 transition-colors max-w-[180px] truncate">
                           {availableMetrics.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       )}
@@ -1321,13 +1321,13 @@ export default function Dashboard({ user: initialUser }) {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-label font-bold text-sm text-on-surface truncate">{docName}</p>
-                                <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mt-0.5">{doc.upload_date}</p>
+                                <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant mt-0.5">{doc.upload_date}</p>
                               </div>
                               <div className="text-right flex-shrink-0">
                                 <span className={`text-xl font-headline italic ${scoreColor}`}>
                                   {score ?? '--'}
                                 </span>
-                                <p className="font-label text-[8px] uppercase tracking-widest text-on-surface-variant">Score</p>
+                                <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant">Score</p>
                               </div>
                               <ChevronRight size={16} className="text-on-surface-variant group-hover:text-primary ml-1 flex-shrink-0" />
                             </a>
@@ -1351,7 +1351,7 @@ export default function Dashboard({ user: initialUser }) {
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={`flex flex-col items-center p-2 rounded-xl transition-all ${activeTab === t.id ? 'text-primary' : 'text-on-surface-variant'}`}>
             <span className="text-xl">{t.icon}</span>
-            <span className="font-label uppercase tracking-widest text-[9px] mt-1">{t.label}</span>
+            <span className="font-label uppercase tracking-widest text-[12px] mt-1">{t.label}</span>
           </button>
         ))}
       </footer>

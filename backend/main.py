@@ -57,10 +57,18 @@ report_collection = database.get_collection("medical_reports")
 plan_collection   = database.get_collection("weekly_plans")
 
 app = FastAPI()
+
+# In production set ALLOWED_ORIGINS="https://poshanpal.vercel.app,https://your-domain.com"
+# Locally we allow everything for convenience.
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"],
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Serve saved report images

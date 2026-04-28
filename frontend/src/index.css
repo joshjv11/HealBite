@@ -8,6 +8,9 @@
 /* ── Base ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Bump the root by 1px so all rem-based Tailwind sizes scale up proportionally */
+html { font-size: 17px; }
+
 body {
   font-family: 'Lexend', system-ui, sans-serif;
   background-color: #121412;
