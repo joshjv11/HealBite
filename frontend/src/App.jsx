@@ -35,34 +35,22 @@ const REGION_OPTIONS = [
   { value: 'Western', emoji: '🥗', label: 'Western',      desc: 'Salads, wraps, grilled'  },
 ];
 
-// Each entry carries the native-script text AND a romanised English fallback.
-// The fallback is spoken when the device has no voice for that language,
-// preventing the wrong TTS engine from producing silence or garbled output.
+// Native script first; bn/ta roman lines are full transliteration (not English) for fallback TTS.
 const WELCOME_GREETINGS = {
-  'hi-IN': {
-    text:     'PoshanPal में आपका स्वागत है। अपना नाम बताइए।',
-    fallback: 'PoshanPal mein aapka swagat hai. Apna naam bataiye.',
-  },
-  'mr-IN': {
-    text:     'PoshanPal मध्ये आपले स्वागत आहे। आपले नाव सांगा।',
-    fallback: 'PoshanPal madhye aapale swagat aahe. Aapale naav saanga.',
-  },
-  'ta-IN': {
-    text:     'PoshanPal-இல் உங்களை வரவேற்கிறோம். உங்கள் பெயரைச் சொல்லுங்கள்.',
-    fallback: 'Vanakkam! Welcome to PoshanPal. Please tell us your name.',
-  },
-  'bn-IN': {
-    text:     'PoshanPal-এ আপনাকে স্বাগতম। আপনার নাম বলুন।',
-    fallback: 'Namaskar! Welcome to PoshanPal. Please tell us your name.',
-  },
-  'gu-IN': {
-    text:     'PoshanPal માં આપનું સ્વાગત છે। આપનું નામ કહો.',
-    fallback: 'Kem chho! Welcome to PoshanPal. Please tell us your name.',
-  },
-  'en-IN': {
-    text:     'Welcome to PoshanPal. Please tell us your name.',
-    fallback: null,
-  },
+  'hi-IN': 'PoshanPal में आपका स्वागत है। कृपया अपना नाम बताइए।',
+  'mr-IN': 'PoshanPal मध्ये आपले स्वागत आहे। आपले नाव सांगा।',
+  'ta-IN':
+    'வணக்கம். PoshanPal-இல் உங்களை வரவேற்கிறோம். உங்கள் பெயரைச் சொல்லுங்கள்.',
+  'bn-IN':
+    'নমস্কার। PoshanPal-এ আপনাকে স্বাগত জানাই। দয়া করে আপনার নামটি বলুন।',
+  'gu-IN': 'PoshanPal માં આપનું સ્વાગત છે. કૃપા કરીને આપનું નામ કહો.',
+  'en-IN': 'Welcome to PoshanPal. Please tell us your name.',
+};
+const WELCOME_ROMAN_TTS = {
+  'bn-IN':
+    'Nomoshkar. PoshanPal-e apnake swagotom janai. Doya kore apnar namti bolun.',
+  'ta-IN':
+    'Vanakkam. PoshanPal-il ungalai varaverkirom. Ungal peyarai sollungal.',
 };
 
 const TOAST_STYLE = {
@@ -291,8 +279,9 @@ export default function App() {
                         key={lang.code}
                         onClick={() => {
                           setForm(p => ({ ...p, language: lang.code }));
-                          const g = WELCOME_GREETINGS[lang.code];
-                          speakText(g.text, lang.code, g.fallback);
+                          const welcome = WELCOME_GREETINGS[lang.code] ?? WELCOME_GREETINGS['en-IN'];
+                          const roman = WELCOME_ROMAN_TTS[lang.code];
+                          speakText(welcome, lang.code, roman);
                           setStep(1);
                         }}
                         className="py-4 bg-surface-container border border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-high rounded-xl flex flex-col items-center gap-1.5 transition-all active:scale-[0.98]"
@@ -379,7 +368,7 @@ export default function App() {
                     { label: 'Current Weight', field: 'current_weight', unit: 'kg',  icon: Weight,   placeholder: '75',  min: 20,  max: 300 },
                     { label: 'Target Weight',  field: 'target_weight',  unit: 'kg',  icon: Target,   placeholder: '65',  min: 20,  max: 300 },
                     { label: 'Height',         field: 'height_cm',      unit: 'cm',  icon: Ruler,    placeholder: '170', min: 90,  max: 250 },
-                  ].map(({ label, field, unit, icon: Icon, placeholder, min, max }) => {
+                  ].map(({ label, field, unit, icon, placeholder, min, max }) => {
                     const active  = listeningField === field;
                     const current = parseFloat(form[field]) || 0;
 
@@ -391,7 +380,7 @@ export default function App() {
                     return (
                       <div key={field}>
                         <label className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant flex items-center gap-1.5 mb-2">
-                          <Icon size={11} /> {label}
+                          {React.createElement(icon, { size: 11 })} {label}
                         </label>
 
                         <div className="flex items-stretch gap-2">

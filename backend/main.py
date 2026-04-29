@@ -42,12 +42,12 @@ JSON_CONFIG   = types.GenerateContentConfig(response_mime_type="application/json
 
 # Models tried in order — each has an independent quota pool, so exhausting one
 # still leaves the others available as automatic fallbacks.
+# Only IDs that exist on the Generative Language API (1.5 flash / flash-8b retired → 404).
 GEMINI_MODELS = [
-    "gemini-2.5-flash",       # primary   — largest context, best quality
-    "gemini-2.0-flash",       # fallback 1
-    "gemini-2.0-flash-lite",  # fallback 2
-    "gemini-1.5-flash",       # fallback 3 — separate quota pool
-    "gemini-1.5-flash-8b",    # fallback 4 — lightest, almost always available
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
 ]
 
 IST = pytz.timezone("Asia/Kolkata")

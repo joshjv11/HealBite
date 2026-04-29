@@ -8,8 +8,8 @@
 /* ── Base ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-/* Bump the root by 1px so all rem-based Tailwind sizes scale up proportionally */
-html { font-size: 17px; }
+/* Slightly larger root so rem-based UI reads comfortably */
+html { font-size: 18px; }
 
 body {
   font-family: 'Lexend', system-ui, sans-serif;

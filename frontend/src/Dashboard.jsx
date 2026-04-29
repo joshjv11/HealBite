@@ -25,13 +25,6 @@ const TOAST_STYLE = {
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
-function bmiRing(bmi) {
-  if (bmi < 18.5) return { label: 'Underweight', cls: 'text-primary',  pct: 30 };
-  if (bmi < 25)   return { label: 'Healthy',     cls: 'text-primary',  pct: 75 };
-  if (bmi < 30)   return { label: 'Overweight',  cls: 'text-tertiary', pct: 48 };
-                  return { label: 'Obese',        cls: 'text-error',    pct: 22 };
-}
-
 const CAT = {
   'Small Meal':   { label: 'Light', icon: '🌅', tag: 'bg-primary/20 text-primary border-primary/20' },
   'Avg Meal':     { label: 'Main',  icon: '☀️', tag: 'bg-surface-container-highest text-on-surface border-outline-variant/20' },
@@ -71,59 +64,73 @@ const getDangerLevel = (marker) => {
   return 2; // any other non-normal defaults to moderate
 };
 
-// Per-level visual config — every class is a complete literal string so Tailwind JIT picks them up.
+// Per-level visual config — greens for stable/normal, graded reds for concerns (Tailwind literals for JIT).
 const DANGER_CONFIG = [
-  { // 0 — Normal
+  { // 0 — Normal / favourable
     span:  false,
-    card:  'bg-surface-container border-outline-variant/10 hover:border-primary/20',
-    strip: 'bg-primary/50',
-    badge: 'bg-primary/15 text-primary',
-    val:   'text-on-surface',
-    desc:  'text-on-surface-variant',
+    card:  'bg-emerald-950/45 border-emerald-500/35 hover:border-emerald-400/45',
+    strip: 'bg-emerald-500',
+    badge: 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40',
+    val:   'text-emerald-50',
+    desc:  'text-emerald-100/90',
+    borderNote: 'border-emerald-500/20',
     label: 'Normal',
     pulse: false,
   },
-  { // 1 — Borderline  (gold / tertiary)
+  { // 1 — Borderline (soft rose — early warning)
     span:  true,
-    card:  'bg-[#1e1500]/80 border-tertiary/50 hover:bg-[#1e1500]',
-    strip: 'bg-tertiary',
-    badge: 'bg-tertiary/20 text-tertiary border border-tertiary/40',
-    val:   'text-tertiary',
-    desc:  'text-tertiary/75',
+    card:  'bg-rose-950/50 border-rose-500/45 hover:bg-rose-950/60',
+    strip: 'bg-rose-500',
+    badge: 'bg-rose-600/25 text-rose-100 border border-rose-400/45',
+    val:   'text-rose-50',
+    desc:  'text-rose-100/88',
+    borderNote: 'border-rose-500/25',
     label: 'Borderline',
     pulse: false,
   },
-  { // 2 — Abnormal  (orange)
+  { // 2 — Abnormal (mid red)
     span:  true,
-    card:  'bg-[#1a0800]/80 border-[#f97316]/45 hover:bg-[#1a0800]',
-    strip: 'bg-[#f97316]',
-    badge: 'bg-[#f97316]/20 text-[#f97316] border border-[#f97316]/40',
-    val:   'text-[#f97316]',
-    desc:  'text-[#f97316]/75',
+    card:  'bg-red-950/55 border-red-500/55 hover:bg-red-950/65',
+    strip: 'bg-red-500',
+    badge: 'bg-red-600/30 text-red-50 border border-red-500/55',
+    val:   'text-red-50',
+    desc:  'text-red-100/88',
+    borderNote: 'border-red-500/30',
     label: 'Abnormal',
     pulse: false,
   },
-  { // 3 — High Risk  (bright error pink-red, worsening trend)
+  { // 3 — High Risk (stronger red)
     span:  true,
-    card:  'bg-error-container/25 border-error/55 hover:bg-error-container/35',
-    strip: 'bg-error',
-    badge: 'bg-error/20 text-error border border-error/50',
-    val:   'text-error',
-    desc:  'text-error/80',
+    card:  'bg-red-950/70 border-red-400/65 hover:bg-red-950/80 shadow-lg shadow-red-950/40',
+    strip: 'bg-red-600',
+    badge: 'bg-red-600/40 text-red-50 border border-red-400/60',
+    val:   'text-red-50',
+    desc:  'text-red-100',
+    borderNote: 'border-red-400/35',
     label: 'High Risk',
     pulse: false,
   },
-  { // 4 — Critical  (deep crimson + pulsing dot)
+  { // 4 — Critical (deepest red + pulse)
     span:  true,
-    card:  'bg-error-container/50 border-error/80 shadow-lg shadow-error-container/50 hover:bg-error-container/60',
-    strip: 'bg-error',
-    badge: 'bg-error text-on-error border border-error',
-    val:   'text-error',
-    desc:  'text-error/90',
+    card:  'bg-[#1f0505]/95 border-red-500/90 shadow-xl shadow-red-950/55 hover:bg-[#280808]',
+    strip: 'bg-red-600',
+    badge: 'bg-red-600 text-red-50 border border-red-400',
+    val:   'text-red-50',
+    desc:  'text-red-50',
+    borderNote: 'border-red-500/45',
     label: 'CRITICAL',
     pulse: true,
   },
 ];
+
+const DISPLAY_SALUTATION = {
+  'hi-IN': 'नमस्ते',
+  'mr-IN': 'नमस्कार',
+  'ta-IN': 'வணக்கம்',
+  'bn-IN': 'নমস্কার',
+  'gu-IN': 'નમસ્તે',
+  'en-IN': 'Hello',
+};
 
 const FEEDBACK_MAX = 2000;
 
@@ -296,7 +303,6 @@ export default function Dashboard({ user: initialUser }) {
     ? user.language
     : LEGACY_LANG_MAP[user.language] || 'en-IN';
 
-  const ring = bmiRing(user.bmi);
   const R    = 58;
   const circ = 2 * Math.PI * R;
 
@@ -306,38 +312,27 @@ export default function Dashboard({ user: initialUser }) {
 
   // ── Auto-greeting (Audio-first for low-literacy users) ──
   useEffect(() => {
-    const firstName = user.name.split(' ')[0];
+    const trimmed = (user.name || '').trim();
+    if (!trimmed) return;
+    const firstName = trimmed.split(/\s+/)[0];
+
     const GREETINGS = {
-      'hi-IN': {
-        text:     `नमस्ते ${firstName}! PoshanPal में आपका स्वागत है। आपका भोजन योजना तैयार है।`,
-        fallback: `Namaste ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
-      },
-      'mr-IN': {
-        text:     `नमस्कार ${firstName}! PoshanPal मध्ये आपले स्वागत आहे। आपली जेवणाची योजना तयार आहे।`,
-        fallback: `Namaskar ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
-      },
-      'ta-IN': {
-        text:     `வணக்கம் ${firstName}! PoshanPal-இல் உங்களை வரவேற்கிறோம். உங்கள் உணவுத் திட்டம் தயாராக உள்ளது.`,
-        fallback: `Vanakkam ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
-      },
-      'bn-IN': {
-        text:     `নমস্কার ${firstName}! PoshanPal-এ আপনাকে স্বাগতম। আপনার খাবারের পরিকল্পনা তৈরি।`,
-        fallback: `Namaskar ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
-      },
-      'gu-IN': {
-        text:     `નમસ્તે ${firstName}! PoshanPal માં આપનું સ્વાગત છે। આપની ભોજન યોજના તૈયાર છે.`,
-        fallback: `Kem chho ${firstName}! Welcome back to PoshanPal. Your meal plan is ready.`,
-      },
-      'en-IN': {
-        text:     `Welcome back, ${firstName}! Your personalised meal plan is ready on PoshanPal.`,
-        fallback: null,
-      },
+      'hi-IN': `नमस्ते ${firstName}! PoshanPal में आपका स्वागत है। आपकी भोजन योजना तैयार है।`,
+      'mr-IN': `नमस्कार ${firstName}! PoshanPal मध्ये आपले स्वागत आहे. आपली जेवणाची योजना तयार आहे.`,
+      'ta-IN': `வணக்கம் ${firstName}! PoshanPal-இல் உங்களை வரவேற்கிறோம். உங்கள் உணவுத் திட்டம் தயார் ஆக உள்ளது.`,
+      'bn-IN': `নমস্কার ${firstName}! PoshanPal-এ আপনাকে স্বাগত জানাই। আপনার খাবারের পরিকল্পনা তৈরি হয়ে গেছে।`,
+      'gu-IN': `નમસ્તે ${firstName}! PoshanPal માં આપનું સ્વાગત છે. આપની ભોજન યોજના તૈયાર છે.`,
+      'en-IN': `Welcome back, ${firstName}! Your personalised meal plan is ready on PoshanPal.`,
     };
-    const g = GREETINGS[lang] || GREETINGS['en-IN'];
-    const timer = setTimeout(() => speakText(g.text, lang, g.fallback), 1500);
+    const GREETINGS_ROMAN_TTS = {
+      'bn-IN': `Nomoshkar, ${firstName}! PoshanPal-e apnake swagotom janai. Apnar khabarer porikolpona toiri hoye geche.`,
+      'ta-IN': `Vanakkam, ${firstName}! PoshanPal-il ungalai varaverkirom. Ungal unavu thittam ippoluthu thayar.`,
+    };
+    const greeting = GREETINGS[lang] ?? GREETINGS['en-IN'];
+    const roman = GREETINGS_ROMAN_TTS[lang];
+    const timer = setTimeout(() => speakText(greeting, lang, roman), 1500);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [lang, user.name]);
 
   // ── Data fetching ──
   const fetchPlan = useCallback(async (forceRefresh = false) => {
@@ -428,7 +423,7 @@ export default function Dashboard({ user: initialUser }) {
       if (res.data.source === 'fallback') {
         toast('AI offline — showing our best offline recipe match.', { icon: '📖', ...TOAST_STYLE });
       }
-      speakText(`Recipe ready: ${res.data.name}`, lang, `Recipe ready: ${res.data.name}`);
+      speakText(`Recipe ready: ${res.data.name}`, lang);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Pantry chef failed.', TOAST_STYLE);
     }
@@ -605,11 +600,11 @@ export default function Dashboard({ user: initialUser }) {
       {/* ══════════ TOP NAV ══════════ */}
       <nav className="fixed top-0 w-full z-50 bg-surface-container-lowest/70 backdrop-blur-xl border-b border-outline-variant/10 flex justify-between items-center px-6 py-4">
         <div className="flex items-center gap-8">
-          <span className="font-headline text-2xl italic text-on-surface tracking-tight">PoshanPal</span>
+          <span className="font-headline text-3xl italic text-on-surface tracking-tight">PoshanPal</span>
           <div className="hidden md:flex gap-6">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`font-label text-sm transition-colors ${activeTab === t.id ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`}>
+                className={`font-label text-base transition-colors ${activeTab === t.id ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`}>
                 {t.label}
               </button>
             ))}
@@ -626,23 +621,16 @@ export default function Dashboard({ user: initialUser }) {
       </nav>
 
       {/* ══════════ HERO ══════════ */}
-      <header className="pt-28 px-6 max-w-5xl mx-auto mb-6">
+      <header className="pt-28 px-6 max-w-6xl mx-auto mb-8">
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="font-headline text-4xl md:text-6xl italic text-on-surface tracking-tight mb-2"
+          className="font-headline text-5xl md:text-7xl italic text-on-surface tracking-tight mb-3"
         >
-          {({
-            'hi-IN': 'नमस्ते',
-            'mr-IN': 'नमस्कार',
-            'ta-IN': 'வணக்கம்',
-            'bn-IN': 'নমস্কার',
-            'gu-IN': 'નમસ્તે',
-            'en-IN': 'Hello',
-          }[lang] ?? 'Hello')}, {user.name.split(' ')[0]}.
+          {DISPLAY_SALUTATION[lang] ?? DISPLAY_SALUTATION['en-IN']}, {user.name.split(' ')[0]}.
         </motion.h1>
-        <p className="font-label text-xs uppercase tracking-[0.2em] text-tertiary opacity-80">{today}</p>
+        <p className="font-label text-sm uppercase tracking-[0.2em] text-tertiary opacity-85">{today}</p>
 
         {hasDirective && (
           <motion.div
@@ -657,10 +645,10 @@ export default function Dashboard({ user: initialUser }) {
       </header>
 
       {/* ══════════ TABS ══════════ */}
-      <div className="flex gap-2 px-6 mb-8 max-w-5xl mx-auto overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex gap-2 px-6 mb-8 max-w-6xl mx-auto overflow-x-auto pb-1 no-scrollbar">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-label text-sm uppercase tracking-widest whitespace-nowrap transition-all border flex-shrink-0 ${
+            className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-label text-[15px] uppercase tracking-widest whitespace-nowrap transition-all border flex-shrink-0 ${
               activeTab === t.id
                 ? 'bg-primary-container border-primary/40 text-primary'
                 : 'bg-surface-container border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-high'
@@ -670,7 +658,7 @@ export default function Dashboard({ user: initialUser }) {
         ))}
       </div>
 
-      <main className="px-6 max-w-5xl mx-auto pb-32">
+      <main className="px-6 max-w-6xl mx-auto pb-32">
         <AnimatePresence mode="wait">
 
           {/* ═══════════════ TAB: WEEKLY PLAN ═══════════════ */}
@@ -962,11 +950,11 @@ export default function Dashboard({ user: initialUser }) {
               className="space-y-6">
 
               {/* 0. DOCTOR'S BRIEFING */}
-              <div className="bg-surface-container-low p-6 rounded-3xl border border-tertiary/20 shadow-lg">
+              <div className="bg-surface-container-low p-8 rounded-3xl border border-tertiary/20 shadow-lg">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex-1">
-                    <h3 className="font-headline text-2xl italic text-on-surface mb-1 flex items-center gap-2">
-                      <Bot size={22} className="text-tertiary flex-shrink-0" /> Doctor's Briefing AI
+                    <h3 className="font-headline text-3xl italic text-on-surface mb-1 flex items-center gap-2">
+                      <Bot size={24} className="text-tertiary flex-shrink-0" /> Doctor's Briefing AI
                     </h3>
                     <p className="font-label text-xs text-on-surface-variant leading-relaxed">
                       Generate a concise, one-page clinical summary of your entire health profile to make your next doctor's visit more effective.
@@ -996,50 +984,50 @@ export default function Dashboard({ user: initialUser }) {
               </div>
 
               {/* 1. HOLISTIC PATIENT BANNER */}
-              <div className="bg-surface-container-low p-6 rounded-3xl border border-primary/20 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-primary rounded-l-3xl" />
+              <div className="bg-surface-container-low p-7 rounded-3xl border border-primary/20 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-primary rounded-l-3xl" />
                 <div className="pl-2">
                   <div className="flex items-center gap-3 mb-2">
-                    <h2 className="font-headline text-3xl italic text-on-surface">Patient Profile</h2>
+                    <h2 className="font-headline text-4xl italic text-on-surface">Patient Profile</h2>
                     {(() => {
                       const markers = user.clinical_profile?.latest_markers || [];
                       if (!markers.length) return null;
                       const maxLevel = Math.max(...markers.map(getDangerLevel));
                       if (maxLevel === 0) return (
-                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/40">
                           All Clear
                         </span>
                       );
                       if (maxLevel === 1) return (
-                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-tertiary/20 text-tertiary border border-tertiary/40">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-rose-950/60 text-rose-100 border border-rose-500/45">
                           Watch
                         </span>
                       );
                       if (maxLevel === 2) return (
-                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#1a0800]/80 text-[#f97316] border border-[#f97316]/50">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-red-950/70 text-red-100 border border-red-500/55">
                           Moderate Risk
                         </span>
                       );
                       if (maxLevel === 3) return (
-                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/25 text-error border border-error/50">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-red-950/85 text-red-50 border border-red-400/60">
                           High Risk
                         </span>
                       );
                       return (
-                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-error-container/50 text-error border border-error/80 flex items-center gap-1.5">
+                        <span className="font-label text-[12px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#1f0505]/95 text-red-50 border border-red-500/85 flex items-center gap-1.5">
                           <span className="relative flex h-1.5 w-1.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error" />
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
                           </span>
                           Critical Alert
                         </span>
                       );
                     })()}
                   </div>
-                  <div className="flex flex-wrap gap-4 font-label text-sm text-on-surface-variant">
-                    <span>Target: <strong className="text-primary">{user.target_cal} kcal</strong></span>
-                    <span>Protein: <strong className="text-primary">{user.target_protein}g</strong></span>
-                    {user.bmi && <span>BMI: <strong className="text-primary">{user.bmi}</strong></span>}
+                  <div className="flex flex-wrap gap-4 font-label text-[15px] text-on-surface-variant">
+                    <span>Target: <strong className="text-emerald-300">{user.target_cal} kcal</strong></span>
+                    <span>Protein: <strong className="text-emerald-300">{user.target_protein}g</strong></span>
+                    {user.bmi && <span>BMI: <strong className="text-emerald-300">{user.bmi}</strong></span>}
                     {user.allergies?.length > 0 && (
                       <span>Avoid: <strong className="text-error uppercase">{user.allergies.join(', ')}</strong></span>
                     )}
@@ -1050,7 +1038,7 @@ export default function Dashboard({ user: initialUser }) {
                 <div className="flex flex-wrap gap-2 justify-start md:justify-end">
                   {user.clinical_profile?.chronic_conditions?.length > 0
                     ? user.clinical_profile.chronic_conditions.map((cond, i) => (
-                        <span key={i} className="bg-error/10 border border-error/30 text-error px-3 py-1.5 rounded-xl text-[13px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                        <span key={i} className="bg-red-950/50 border border-red-500/45 text-red-100 px-3 py-1.5 rounded-xl text-[13px] font-bold uppercase tracking-widest flex items-center gap-1.5">
                           <Activity size={12} /> {cond}
                         </span>
                       ))
@@ -1069,12 +1057,12 @@ export default function Dashboard({ user: initialUser }) {
                 <div className="lg:col-span-5 space-y-6">
 
                   {/* Compact Upload Zone */}
-                  <div className="bg-surface-container p-5 rounded-3xl border-2 border-dashed border-primary/20 hover:border-primary/50 transition-colors relative group text-center">
+                  <div className="bg-surface-container p-6 rounded-3xl border-2 border-dashed border-primary/20 hover:border-primary/50 transition-colors relative group text-center">
                     <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
                       onChange={handleFileChange}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                    <Upload size={28} className="mx-auto text-primary/50 mb-2.5 group-hover:scale-110 group-hover:text-primary transition-all" />
-                    <p className="font-label font-bold text-on-surface text-sm">
+                    <Upload size={32} className="mx-auto text-primary/50 mb-2.5 group-hover:scale-110 group-hover:text-primary transition-all" />
+                    <p className="font-label font-bold text-on-surface text-[15px]">
                       {reportFile ? reportFile.name : 'Upload New Lab Report'}
                     </p>
                     <p className="font-label text-[13px] text-on-surface-variant uppercase tracking-widest mt-1">
@@ -1095,11 +1083,11 @@ export default function Dashboard({ user: initialUser }) {
 
                   {/* Vital Biomarkers Bento Grid */}
                   {user.clinical_profile?.latest_markers?.length > 0 ? (
-                    <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/10 shadow-lg">
+                    <div className="bg-surface-container-low p-7 rounded-3xl border border-outline-variant/10 shadow-lg">
 
                       {/* ── Header ── */}
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-headline text-2xl italic text-on-surface">Vital Biomarkers</h3>
+                        <h3 className="font-headline text-3xl italic text-on-surface">Vital Biomarkers</h3>
                         <div className="flex items-center gap-2">
                           {refreshingHistory && <Loader2 size={11} className="animate-spin text-primary" />}
                           <span className="font-label text-[12px] uppercase tracking-widest text-on-surface-variant">Aggregated Profile</span>
@@ -1118,30 +1106,30 @@ export default function Dashboard({ user: initialUser }) {
                         return (
                           <div className="flex flex-wrap gap-2 mb-4">
                             {counts[4] > 0 && (
-                              <div className="flex items-center gap-1.5 bg-error-container/50 border border-error/70 rounded-full px-3 py-1">
+                              <div className="flex items-center gap-1.5 bg-[#1f0505]/95 border border-red-500/85 rounded-full px-3 py-1">
                                 <span className="relative flex h-1.5 w-1.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error" />
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
                                 </span>
-                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-error">{counts[4]} Critical</span>
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-red-100">{counts[4]} Critical</span>
                               </div>
                             )}
                             {counts[3] > 0 && (
-                              <div className="flex items-center gap-1.5 bg-error-container/25 border border-error/50 rounded-full px-3 py-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-error flex-shrink-0" />
-                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-error">{counts[3]} High Risk</span>
+                              <div className="flex items-center gap-1.5 bg-red-950/75 border border-red-400/60 rounded-full px-3 py-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-red-100">{counts[3]} High Risk</span>
                               </div>
                             )}
                             {counts[2] > 0 && (
-                              <div className="flex items-center gap-1.5 bg-[#1a0800]/80 border border-[#f97316]/50 rounded-full px-3 py-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#f97316] flex-shrink-0" />
-                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-[#f97316]">{counts[2]} Abnormal</span>
+                              <div className="flex items-center gap-1.5 bg-red-950/60 border border-red-500/55 rounded-full px-3 py-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-red-100">{counts[2]} Abnormal</span>
                               </div>
                             )}
                             {counts[1] > 0 && (
-                              <div className="flex items-center gap-1.5 bg-[#1e1500]/80 border border-tertiary/50 rounded-full px-3 py-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-tertiary flex-shrink-0" />
-                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-tertiary">{counts[1]} Borderline</span>
+                              <div className="flex items-center gap-1.5 bg-rose-950/55 border border-rose-500/45 rounded-full px-3 py-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
+                                <span className="font-label text-[12px] font-bold uppercase tracking-widest text-rose-100">{counts[1]} Borderline</span>
                               </div>
                             )}
                           </div>
@@ -1159,9 +1147,10 @@ export default function Dashboard({ user: initialUser }) {
                             const t     = (marker.trend  || '').toLowerCase();
                             const isGoodTrend = (s === 'high' && t === 'down') || (s === 'low' && t === 'up');
                             const TrendIcon   = t === 'up' ? TrendingUp : t === 'down' ? TrendingDown : Minus;
-                            const trendColor  = level === 0 ? 'text-on-surface-variant'
-                                              : isGoodTrend ? 'text-primary'
-                                              : cfg.val;
+                            const trendColor  = level === 0
+                              ? 'text-emerald-400/90'
+                              : isGoodTrend ? 'text-emerald-400'
+                              : cfg.val;
                             return (
                               <div
                                 key={i}
@@ -1176,11 +1165,11 @@ export default function Dashboard({ user: initialUser }) {
                                     <div className="flex items-center gap-1.5 min-w-0">
                                       {cfg.pulse && (
                                         <span className="relative flex h-2 w-2 flex-shrink-0">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
-                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-error" />
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                                         </span>
                                       )}
-                                      <p className="font-label text-[12px] uppercase tracking-widest text-on-surface-variant font-bold truncate">
+                                      <p className={`font-label text-[12px] uppercase tracking-widest font-bold truncate ${level === 0 ? 'text-emerald-200/90' : 'text-on-surface-variant'}`}>
                                         {marker.name}
                                       </p>
                                     </div>
@@ -1195,14 +1184,14 @@ export default function Dashboard({ user: initialUser }) {
                                   </div>
 
                                   {/* Value */}
-                                  <p className={`font-headline text-2xl italic leading-none ${cfg.val}`}>
+                                  <p className={`font-headline text-2xl md:text-3xl italic leading-none ${cfg.val}`}>
                                     {marker.value}{' '}
-                                    <span className="text-[13px] font-sans not-italic text-on-surface-variant">{marker.unit}</span>
+                                    <span className={`text-[13px] font-sans not-italic ${level === 0 ? 'text-emerald-300/70' : 'text-on-surface-variant'}`}>{marker.unit}</span>
                                   </p>
 
                                   {/* Description — shown for all non-normal markers */}
                                   {level > 0 && marker.description && (
-                                    <p className={`mt-2.5 text-[13px] font-label leading-relaxed border-t border-white/5 pt-2 ${cfg.desc}`}>
+                                    <p className={`mt-2.5 text-[13px] font-label leading-relaxed border-t pt-2 ${cfg.borderNote} ${cfg.desc}`}>
                                       {marker.description}
                                     </p>
                                   )}
@@ -1228,14 +1217,14 @@ export default function Dashboard({ user: initialUser }) {
 
                   {/* Active AI Protocols */}
                   {user.clinical_profile?.ai_protocols?.length > 0 && (
-                    <div className="bg-primary/8 p-6 rounded-3xl border border-primary/20 shadow-lg">
-                      <h3 className="font-headline text-xl italic text-primary mb-4 flex items-center gap-2">
-                        <ShieldCheck size={18} /> Active Clinical Protocols
+                    <div className="bg-emerald-950/25 p-7 rounded-3xl border border-emerald-600/30 shadow-lg">
+                      <h3 className="font-headline text-2xl italic text-emerald-200 mb-4 flex items-center gap-2">
+                        <ShieldCheck size={20} /> Active Clinical Protocols
                       </h3>
                       <ul className="space-y-3">
                         {user.clinical_profile.ai_protocols.map((protocol, i) => (
-                          <li key={i} className="flex items-start gap-3 font-label text-sm text-on-surface leading-relaxed">
-                            <div className="mt-1.5 w-1.5 h-1.5 bg-primary rounded-full flex-shrink-0" />
+                          <li key={i} className="flex items-start gap-3 font-label text-[15px] text-on-surface leading-relaxed">
+                            <div className="mt-1.5 w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0" />
                             {protocol}
                           </li>
                         ))}
@@ -1244,10 +1233,10 @@ export default function Dashboard({ user: initialUser }) {
                   )}
 
                   {/* Dynamic Longitudinal Graph */}
-                  <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/10 shadow-lg h-[300px] flex flex-col">
+                  <div className="bg-surface-container-low p-7 rounded-3xl border border-outline-variant/10 shadow-lg h-[340px] flex flex-col">
                     <div className="flex justify-between items-center mb-4 gap-3">
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <h3 className="font-headline text-2xl italic text-on-surface">Longitudinal Trends</h3>
+                        <h3 className="font-headline text-3xl italic text-on-surface">Longitudinal Trends</h3>
                         {refreshingHistory && <Loader2 size={13} className="animate-spin text-primary" />}
                       </div>
                       {availableMetrics.length > 0 && (
@@ -1272,23 +1261,23 @@ export default function Dashboard({ user: initialUser }) {
                       </div>
                     ) : (
                       <div className="flex-1 w-full min-h-0">
-                        <ResponsiveContainer width="100%" height={200}>
+                        <ResponsiveContainer width="100%" height={236}>
                           <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#282a28" vertical={false} />
-                            <XAxis dataKey="date" stroke="#89938d" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-                            <YAxis stroke="#89938d" fontSize={10} tickLine={false} axisLine={false} dx={-10} />
+                            <XAxis dataKey="date" stroke="#89938d" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                            <YAxis stroke="#89938d" fontSize={11} tickLine={false} axisLine={false} dx={-10} />
                             <Tooltip
-                              contentStyle={{ backgroundColor: '#1e201e', border: '1px solid #404944', borderRadius: '12px', fontSize: '12px', color: '#e2e3df' }}
-                              itemStyle={{ color: '#95d3ba', fontWeight: 'bold' }}
+                              contentStyle={{ backgroundColor: '#1e201e', border: '1px solid #404944', borderRadius: '12px', fontSize: '13px', color: '#e2e3df' }}
+                              itemStyle={{ color: '#6ee7b7', fontWeight: 'bold' }}
                             />
                             <Line
                               type="monotone"
                               name={selectedMetric}
                               dataKey="value"
-                              stroke="#95d3ba"
-                              strokeWidth={3}
-                              dot={{ r: 4, fill: '#1e201e', strokeWidth: 2, stroke: '#95d3ba' }}
-                              activeDot={{ r: 6 }}
+                              stroke="#34d399"
+                              strokeWidth={4}
+                              dot={{ r: 5, fill: '#1e201e', strokeWidth: 2, stroke: '#34d399' }}
+                              activeDot={{ r: 7 }}
                               connectNulls
                             />
                           </LineChart>
@@ -1312,7 +1301,7 @@ export default function Dashboard({ user: initialUser }) {
                         medicalHistory.map((doc, i) => {
                           const docName    = doc.document_name || doc.data?.report_type || 'Clinical Document';
                           const score      = doc.extracted_data?.overall_health_score ?? doc.data?.overall_health_score;
-                          const scoreColor = score != null && score > 70 ? 'text-primary' : 'text-error';
+                          const scoreColor = score != null && score > 70 ? 'text-emerald-400' : 'text-red-400';
                           return (
                             <a href={doc.file_url} target="_blank" rel="noreferrer" key={i}
                               className="flex items-center gap-4 p-4 bg-surface-container rounded-2xl border border-outline-variant/10 hover:border-primary/30 transition-colors group cursor-pointer">
