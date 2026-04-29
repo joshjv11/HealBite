@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   Mic, MicOff, ArrowRight, ArrowLeft,
   AlertCircle, Weight, Ruler, Target, Activity,
-  Plus, Minus, Volume2,
+  Plus, Minus, Volume2, Sparkles, ShieldCheck, Languages,
 } from 'lucide-react';
 import { speakText } from './utils';
 import Dashboard from './Dashboard';
@@ -33,6 +33,24 @@ const REGION_OPTIONS = [
   { value: 'South',   emoji: '🍛', label: 'South Indian', desc: 'Rice, sambar, idli'      },
   { value: 'All',     emoji: '🇮🇳', label: 'Mix of Both',  desc: 'Best of India'           },
   { value: 'Western', emoji: '🥗', label: 'Western',      desc: 'Salads, wraps, grilled'  },
+];
+
+const LANDING_FEATURES = [
+  {
+    icon: Languages,
+    title: 'Multilingual by design',
+    desc: 'Onboarding and meal guidance in Hindi, Marathi, Tamil, Bengali, Gujarati, and English.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Clinical-aware planning',
+    desc: 'Targets derived from your profile — calories, protein, and cuisine preferences.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Voice or keyboard',
+    desc: 'Use the mic where it helps, type when you prefer. Same flow in the browser.',
+  },
 ];
 
 // Native script first; bn/ta roman lines are full transliteration (not English) for fallback TTS.
@@ -196,36 +214,101 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background text-on-surface relative overflow-x-hidden">
       <Toaster position="top-center" toastOptions={TOAST_STYLE} />
 
-      <div className="w-full max-w-sm">
-        {/* Brand mark */}
-        <div className="text-center mb-8">
-          <span className="font-headline text-4xl italic text-on-surface tracking-tight">PoshanPal</span>
-        </div>
+      {/* Ambient background */}
+      <div
+        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(149,211,186,0.12),transparent)]"
+        aria-hidden
+      />
+      <div className="pointer-events-none fixed top-0 right-0 h-[min(70vh,560px)] w-[min(90vw,640px)] rounded-full bg-primary/8 blur-[100px]" aria-hidden />
+      <div className="pointer-events-none fixed bottom-0 left-0 h-[min(50vh,400px)] w-[min(80vw,480px)] rounded-full bg-tertiary/6 blur-[90px]" aria-hidden />
 
-        {/* Main card */}
-        <div className="bg-surface-container-low border border-outline-variant/20 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col lg:flex-row">
+        {/* ── Web hero (desktop) ── */}
+        <aside
+          aria-label="Product overview"
+          className="relative hidden flex-col justify-center border-outline-variant/15 px-6 py-10 sm:px-10 md:flex md:max-w-md md:flex-shrink-0 lg:w-[min(44%,520px)] lg:max-w-none lg:border-r lg:py-16 lg:pl-12 lg:pr-10 xl:pl-16"
+        >
+          <div className="mb-8 lg:mb-12">
+            <p className="font-label text-[11px] font-bold uppercase tracking-[0.28em] text-primary/90">
+              Nutrition intelligence
+            </p>
+            <h1 className="font-headline mt-3 text-4xl italic leading-[1.08] tracking-tight text-on-surface sm:text-5xl xl:text-[3.25rem]">
+              Your plate,
+              <br />
+              <span className="text-primary">your language</span>, your goals.
+            </h1>
+            <p className="mt-5 max-w-md font-label text-base leading-relaxed text-on-surface-variant">
+              PoshanPal runs in the browser — set up your profile, get a personalised weekly plan, and log meals without installing an app.
+            </p>
+          </div>
+          <ul className="flex flex-col gap-5">
+            {LANDING_FEATURES.map(({ icon, title, desc }) => (
+              <li key={title} className="flex gap-4">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
+                  {React.createElement(icon, { size: 20, strokeWidth: 1.75 })}
+                </div>
+                <div>
+                  <p className="font-label font-semibold text-on-surface">{title}</p>
+                  <p className="mt-1 font-label text-sm leading-relaxed text-on-surface-variant">{desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-10 font-label text-[12px] uppercase tracking-widest text-on-surface-variant/50">
+            Secure · Chrome, Edge & Safari · Voice optional
+          </p>
+        </aside>
 
-          {/* Step progress bar */}
-          {step > 0 && (
-            <div className="h-px bg-surface-container-highest w-full">
-              <motion.div
-                className="h-full bg-primary"
-                initial={{ width: `${((step - 1) / TOTAL_STEPS) * 100}%` }}
-                animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
-                transition={{ duration: 0.4, ease: 'easeInOut' }}
-              />
+        {/* ── Form column ── */}
+        <main
+          id="onboarding"
+          className="flex flex-1 flex-col items-center justify-center px-4 pb-12 pt-6 sm:px-8 md:py-10 lg:py-12 lg:pl-8 lg:pr-12 xl:px-16"
+        >
+          {/* Brand strip: phones only (tablet + desktop use hero or card header) */}
+          <div className="mb-6 text-center md:hidden">
+            <span className="font-headline text-3xl italic tracking-tight text-on-surface">PoshanPal</span>
+            <p className="mt-1 font-label text-[13px] text-on-surface-variant">Personal nutrition on the web</p>
+          </div>
+
+          <div className="w-full max-w-[520px]">
+            {/* Desktop brand above card */}
+            <div className="mb-6 hidden text-center md:block">
+              <span className="font-headline text-3xl italic tracking-tight text-on-surface">PoshanPal</span>
+              <p className="mt-1 font-label text-[13px] uppercase tracking-[0.2em] text-on-surface-variant/70">
+                Account setup
+              </p>
             </div>
-          )}
 
-          <div className="p-8">
+            <div className="overflow-hidden rounded-3xl border border-outline-variant/25 bg-surface-container-low/95 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.55)] backdrop-blur-sm">
+              {/* Step progress bar */}
+              {step > 0 && (
+                <div
+                  className="h-1 bg-surface-container-highest"
+                  role="progressbar"
+                  aria-valuemin={1}
+                  aria-valuemax={TOTAL_STEPS}
+                  aria-valuenow={step}
+                  aria-label={`Setup step ${step} of ${TOTAL_STEPS}`}
+                >
+                  <motion.div
+                    className="h-full bg-primary"
+                    initial={{ width: `${((step - 1) / TOTAL_STEPS) * 100}%` }}
+                    animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+                    transition={{ duration: 0.4, ease: 'easeInOut' }}
+                  />
+                </div>
+              )}
+
+              <div className="p-8 sm:p-10">
 
             {/* Step nav header */}
             {step > 0 && (
               <div className="flex items-center justify-between mb-8">
                 <button
+                  type="button"
                   onClick={() => {
                     if (recognitionRef.current) {
                       recognitionRef.current.abort();
@@ -265,18 +348,20 @@ export default function App() {
                     <div className="w-20 h-20 rounded-2xl bg-primary-container border border-primary/20 flex items-center justify-center mx-auto mb-6">
                       <Volume2 className="text-primary w-10 h-10" />
                     </div>
-                    <h1 className="font-headline text-4xl italic text-on-surface leading-tight">
+                    <h2 className="font-headline text-4xl italic text-on-surface leading-tight">
                       Welcome.
-                    </h1>
+                    </h2>
                     <p className="font-label text-[13px] uppercase tracking-[0.2em] text-tertiary mt-4">
                       Select your language
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {SUPPORTED_LANGUAGES.map(lang => (
                       <button
+                        type="button"
                         key={lang.code}
+                        aria-label={`Continue in ${lang.englishLabel}`}
                         onClick={() => {
                           setForm(p => ({ ...p, language: lang.code }));
                           const welcome = WELCOME_GREETINGS[lang.code] ?? WELCOME_GREETINGS['en-IN'];
@@ -293,7 +378,7 @@ export default function App() {
                     ))}
                   </div>
 
-                    <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant/40">
+                  <p className="font-label text-[13px] uppercase tracking-widest text-on-surface-variant/40">
                     Your personal nutrition companion
                   </p>
                 </motion.div>
@@ -314,6 +399,10 @@ export default function App() {
                   </div>
 
                   <input
+                    id="onboarding-name"
+                    name="name"
+                    autoComplete="name"
+                    aria-label="Your name"
                     className="w-full text-center text-2xl font-label py-5 bg-surface-container border border-outline-variant/30 rounded-xl focus:border-primary/60 focus:bg-surface-container-high outline-none transition-all text-on-surface placeholder:text-on-surface-variant/25"
                     value={form.name}
                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
@@ -323,6 +412,9 @@ export default function App() {
 
                   <div className="flex flex-col items-center gap-2 py-1">
                     <motion.button
+                      type="button"
+                      aria-label={listeningField === 'name' ? 'Stop recording name' : 'Speak your name'}
+                      aria-pressed={listeningField === 'name'}
                       onClick={() => handleListen('name')}
                       whileTap={{ scale: 0.88 }}
                       className={`w-16 h-16 rounded-full flex items-center justify-center transition-all border-2 ${
@@ -341,6 +433,7 @@ export default function App() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => validateAndNext(2)}
                     className="w-full bg-gradient-to-r from-primary to-primary-fixed text-on-primary font-label font-semibold py-4 rounded-xl flex justify-center items-center gap-2 transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
                   >
@@ -444,6 +537,7 @@ export default function App() {
                   })}
 
                   <button
+                    type="button"
                     onClick={() => validateAndNext(3)}
                     className="w-full mt-1 bg-gradient-to-r from-primary to-primary-fixed text-on-primary font-label font-semibold py-4 rounded-xl flex justify-center items-center gap-2 transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
                   >
@@ -474,8 +568,10 @@ export default function App() {
                         const sel = form.allergies.includes(key);
                         return (
                           <button
+                            type="button"
                             key={key}
                             onClick={() => toggleAllergy(key)}
+                            aria-pressed={sel}
                             className={`py-3 px-3 rounded-xl border transition-all flex items-center gap-2 text-sm font-label ${
                               sel
                                 ? 'bg-error/10 border-error/30 text-error'
@@ -501,8 +597,10 @@ export default function App() {
                         const sel = form.region === value;
                         return (
                           <button
+                            type="button"
                             key={value}
                             onClick={() => setForm(p => ({ ...p, region: value }))}
+                            aria-pressed={sel}
                             className={`p-3 rounded-xl border text-left transition-all ${
                               sel
                                 ? 'bg-primary-container border-primary/30'
@@ -524,8 +622,10 @@ export default function App() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={submitProfile}
                     disabled={submitting}
+                    aria-busy={submitting}
                     className="w-full bg-gradient-to-r from-tertiary to-tertiary-container text-on-tertiary font-label font-bold py-4 rounded-xl transition-all disabled:opacity-60 flex justify-center items-center gap-2 hover:shadow-lg hover:shadow-tertiary/20 active:scale-[0.98]"
                   >
                     {submitting ? (
@@ -542,8 +642,10 @@ export default function App() {
               )}
 
             </AnimatePresence>
+              </div>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );
